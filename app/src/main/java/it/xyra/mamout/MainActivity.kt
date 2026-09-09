@@ -1,47 +1,76 @@
 package it.xyra.mamout
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
+import it.xyra.mamout.data.local.AppDatabase
+import it.xyra.mamout.data.repository.PromptRepositoryImpl
+import it.xyra.mamout.domain.usecase.SearchPromptsUseCase
+import it.xyra.mamout.ui.promptlist.PromptListScreen
+import it.xyra.mamout.ui.promptlist.PromptListViewModel
 import it.xyra.mamout.ui.theme.MamoutTheme
 
+/**
+ * Main entry point activity for the application.
+ *
+ * Sets up manual dependency injection for database, repository, and use cases,
+ * and sets the main Jetpack Compose content view.
+ */
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Temporary manual dependency injection setup
+        val database = AppDatabase.getInstance(applicationContext)
+        val repository = PromptRepositoryImpl(database.promptDao())
+        val searchPromptsUseCase = SearchPromptsUseCase()
+
         setContent {
             MamoutTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+                val viewModel: PromptListViewModel = viewModel(
+                    factory = object : ViewModelProvider.Factory {
+                        @Suppress("UNCHECKED_CAST")
+                        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                            return PromptListViewModel(repository, searchPromptsUseCase) as T
+                        }
+                    }
+                )
+
+                PromptListScreen(
+                    viewModel = viewModel,
+                    onPromptClick = { promptId ->
+                        Toast.makeText(
+                            this,
+                            "Selected prompt ID: $promptId",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    },
+                    onSearchClick = {
+                        Toast.makeText(
+                            this,
+                            "Opening search screen...",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    },
+                    onAddPromptClick = {
+                        Toast.makeText(
+                            this,
+                            "Creating new prompt...",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
             }
         }
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    MamoutTheme {
-        Greeting("Android")
     }
 }
