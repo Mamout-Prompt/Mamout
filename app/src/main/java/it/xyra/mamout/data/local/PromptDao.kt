@@ -46,6 +46,20 @@ interface PromptDao {
     fun getPromptContent(promptId: Long): Flow<PromptContentEntity?>
 
     /**
+     * Retrieves all prompts joined with their template content for search query processing.
+     *
+     * @return A [Flow] emitting a list of [PromptSearchableDb] database projections.
+     */
+    @Query(
+        """
+        SELECT p.id AS id, p.title AS title, p.description AS description, c.templateText AS templateText
+        FROM prompts p
+        INNER JOIN prompt_contents c ON p.id = c.promptId
+        """
+    )
+    fun getSearchablePrompts(): Flow<List<PromptSearchableDb>>
+
+    /**
      * Updates an existing prompt header.
      * @param prompt The entity to update.
      */
