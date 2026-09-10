@@ -1,21 +1,54 @@
 package it.xyra.mamout.ui.components.promptviewer
 
+import androidx.compose.foundation.*
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import it.xyra.mamout.domain.parser.InputType
 import it.xyra.mamout.domain.parser.ParsedPromptTemplate
 import it.xyra.mamout.domain.parser.PromptSegment
+import it.xyra.mamout.domain.parser.TagPromptParser
 import it.xyra.mamout.ui.theme.MamoutTheme
+
+/**
+ * A shared stateless component that renders a prompt template with interactive input fields.
+ *
+ * @param template The parsed prompt template containing static text and input fields.
+ * @param inputValues A map of current values for each input field ID.
+ * @param onValueChange Callback triggered when an input field's value is modified.
+ * @param modifier The modifier to be applied to the root container.
+ */
+@Composable
+fun InteractivePromptViewer(
+    promptText: String,
+    inputValues: Map<String, String>,
+    onValueChange: (id: String, newValue: String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val parsedTemplate = remember(promptText) { TagPromptParser.parse(promptText) }
+    
+    InteractivePromptViewer(
+        template = parsedTemplate,
+        inputValues = inputValues,
+        onValueChange = onValueChange,
+        modifier = modifier
+    )
+}
 
 /**
  * A shared stateless component that renders a prompt template with interactive input fields.
@@ -102,7 +135,7 @@ private fun PromptInputField(
 }
 
 /**
- * Renders a dropdown menu for fields with predefined options.
+ * Renders a selector that looks like a transparent button and opens a wheel-style picker.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -111,38 +144,127 @@ private fun PromptOptionsField(
     currentValue: String,
     onValueChange: (String) -> Unit
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    var showDialog by remember { mutableStateOf(false) }
 
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
-        modifier = Modifier.fillMaxWidth()
+    OutlinedButton(
+        onClick = { showDialog = true },
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
+        colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Transparent),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
     ) {
-        OutlinedTextField(
-            value = currentValue,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Select Option") },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-            modifier = Modifier
-                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                .fillMaxWidth()
-        )
-
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            field.options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(text = option) },
-                    onClick = {
-                        onValueChange(option)
-                        expanded = false
-                    },
-                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
-                )
+            Text(
+                text = currentValue,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Medium
+            )
+            Icon(
+                imageVector = Icons.Default.UnfoldMore,
+                contentDescription = "Select option",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+
+    if (showDialog) {
+        WheelPickerPopup(
+            options = field.options,
+            initialValue = currentValue,
+            onDismiss = { showDialog = false },
+            onValueChange = onValueChange
+        )
+    }
+}
+
+/**
+ * A popup dialog containing an iOS-style wheel picker.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun WheelPickerPopup(
+    options: List<String>,
+    initialValue: String,
+    onDismiss: () -> Unit,
+    onValueChange: (String) -> Unit
+) {
+    val itemHeight = 48.dp
+    val visibleItems = 3
+    val initialIndex = options.indexOf(initialValue).coerceAtLeast(0)
+    
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
+    val snappingLayout = rememberSnapFlingBehavior(lazyListState = listState)
+
+    // Automatically update the value when the scroll settles
+    LaunchedEffect(listState.isScrollInProgress) {
+        if (!listState.isScrollInProgress) {
+            val selectedIndex = listState.firstVisibleItemIndex
+            if (selectedIndex in options.indices) {
+                onValueChange(options[selectedIndex])
+            }
+        }
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp,
+            modifier = Modifier
+                .width(280.dp)
+                .height(itemHeight * visibleItems + 32.dp) // Height for 3 items + padding
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(vertical = 16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                // Selection Indicator (the "center" highlight)
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(itemHeight)
+                        .padding(horizontal = 12.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {}
+
+                LazyColumn(
+                    state = listState,
+                    flingBehavior = snappingLayout,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(vertical = itemHeight), // One item height padding top/bottom to center first/last
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    items(options.size) { index ->
+                        val isSelected = listState.firstVisibleItemIndex == index
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(itemHeight)
+                                .clickable {
+                                    // Clicking an item centers it and closes the popup
+                                    onValueChange(options[index])
+                                    onDismiss()
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = options[index],
+                                style = if (isSelected) MaterialTheme.typography.titleLarge else MaterialTheme.typography.bodyLarge,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+                    }
+                }
             }
         }
     }
