@@ -38,19 +38,19 @@ object PromptVisualizerEngine {
     /**
      * Styles for highlighting
      */
-    private val jsonKeyStyle = SpanStyle(color = Color(0xFF9C27B0), fontWeight = FontWeight.Bold) // Purple
-    private val stringStyle = SpanStyle(color = Color(0xFF4CAF50)) // Green
-    private val xmlTagStyle = SpanStyle(color = Color(0xFF2196F3)) // Blue
+    private val jsonKeyStyle = SpanStyle(fontWeight = FontWeight.Bold) 
+    private val stringStyle = SpanStyle(color = Color(0xFF388E3C)) // Darker, subtle green
+    private val xmlTagStyle = SpanStyle(color = Color(0xFF1976D2)) // Professional blue
     
     private val boldStyle = SpanStyle(fontWeight = FontWeight.Bold)
     private val italicStyle = SpanStyle(fontStyle = FontStyle.Italic)
     private val strikethroughStyle = SpanStyle(textDecoration = TextDecoration.LineThrough)
     private val codeStyle = SpanStyle(
         fontFamily = FontFamily.Monospace,
-        background = Color(0xFFF0F0F0),
-        color = Color(0xFFC7254E)
+        background = Color(0xFFF5F5F5),
+        color = Color.Unspecified
     )
-    private val linkStyle = SpanStyle(color = Color(0xFF0000EE), textDecoration = TextDecoration.Underline)
+    private val linkStyle = SpanStyle(color = Color(0xFF1565C0), textDecoration = TextDecoration.Underline)
     private val quoteStyle = SpanStyle(color = Color.Gray, fontStyle = FontStyle.Italic)
 
     /**
@@ -168,12 +168,12 @@ object PromptVisualizerEngine {
      */
     private fun getHeaderStyle(level: Int): SpanStyle {
         val size = when (level) {
-            1 -> 24.sp
+            1 -> 22.sp
             2 -> 20.sp
             3 -> 18.sp
             else -> 16.sp
         }
-        return SpanStyle(fontWeight = FontWeight.Bold, fontSize = size, color = Color(0xFF1A73E8))
+        return SpanStyle(fontWeight = FontWeight.Bold, fontSize = size)
     }
 
     /**

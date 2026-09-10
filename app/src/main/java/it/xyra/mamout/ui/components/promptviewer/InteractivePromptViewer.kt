@@ -1,10 +1,9 @@
 package it.xyra.mamout.ui.components.promptviewer
 
 import androidx.compose.foundation.*
-import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.VerticalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -184,9 +183,8 @@ private fun PromptOptionsField(
 }
 
 /**
- * A popup dialog containing an iOS-style wheel picker.
+ * A popup dialog containing an iOS-style wheel picker using VerticalPager for perfect centering.
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun WheelPickerPopup(
     options: List<String>,
@@ -195,20 +193,14 @@ private fun WheelPickerPopup(
     onValueChange: (String) -> Unit
 ) {
     val itemHeight = 48.dp
-    val visibleItems = 3
     val initialIndex = options.indexOf(initialValue).coerceAtLeast(0)
     
-    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
-    val snappingLayout = rememberSnapFlingBehavior(lazyListState = listState)
+    // PagerState handles the centering and snapping automatically
+    val pagerState = rememberPagerState(initialPage = initialIndex, pageCount = { options.size })
 
-    // Automatically update the value when the scroll settles
-    LaunchedEffect(listState.isScrollInProgress) {
-        if (!listState.isScrollInProgress) {
-            val selectedIndex = listState.firstVisibleItemIndex
-            if (selectedIndex in options.indices) {
-                onValueChange(options[selectedIndex])
-            }
-        }
+    // Update the value when the pager settles on a new page
+    LaunchedEffect(pagerState.currentPage) {
+        onValueChange(options[pagerState.currentPage])
     }
 
     Dialog(onDismissRequest = onDismiss) {
@@ -218,7 +210,7 @@ private fun WheelPickerPopup(
             tonalElevation = 6.dp,
             modifier = Modifier
                 .width(280.dp)
-                .height(itemHeight * visibleItems + 32.dp) // Height for 3 items + padding
+                .height(itemHeight * 3 + 32.dp)
         ) {
             Box(
                 modifier = Modifier
@@ -226,7 +218,7 @@ private fun WheelPickerPopup(
                     .padding(vertical = 16.dp),
                 contentAlignment = Alignment.Center
             ) {
-                // Selection Indicator (the "center" highlight)
+                // Selection Indicator (Fixed in the center)
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -236,33 +228,31 @@ private fun WheelPickerPopup(
                     shape = RoundedCornerShape(8.dp)
                 ) {}
 
-                LazyColumn(
-                    state = listState,
-                    flingBehavior = snappingLayout,
+                VerticalPager(
+                    state = pagerState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(vertical = itemHeight), // One item height padding top/bottom to center first/last
+                    // This creates the "3 items visible" effect with the current one in the middle
+                    contentPadding = PaddingValues(vertical = itemHeight),
                     horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    items(options.size) { index ->
-                        val isSelected = listState.firstVisibleItemIndex == index
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(itemHeight)
-                                .clickable {
-                                    // Clicking an item centers it and closes the popup
-                                    onValueChange(options[index])
-                                    onDismiss()
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = options[index],
-                                style = if (isSelected) MaterialTheme.typography.titleLarge else MaterialTheme.typography.bodyLarge,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                            )
-                        }
+                ) { page ->
+                    val isSelected = pagerState.currentPage == page
+                    
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(itemHeight)
+                            .clickable {
+                                // If user clicks a neighbor, it will scroll to it and then we close
+                                if (isSelected) onDismiss()
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = options[page],
+                            style = if (isSelected) MaterialTheme.typography.titleLarge else MaterialTheme.typography.bodyLarge,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                        )
                     }
                 }
             }
@@ -274,32 +264,25 @@ private fun WheelPickerPopup(
 @Composable
 fun InteractivePromptViewerPreview() {
     val examples = listOf(
-        "Plain Text Example" to ParsedPromptTemplate(
-            "", listOf(
-                PromptSegment.StaticText("Hello, my name is "),
-                PromptSegment.InputField("p1", InputType.SMALL_TEXT, "John"),
-                PromptSegment.StaticText(" and I want to talk about "),
-                PromptSegment.InputField("p2", InputType.TEXT, "Weather")
-            )
-        ),
-        "Markdown Example" to ParsedPromptTemplate(
-            "", listOf(
-                PromptSegment.StaticText("# Planning\n\n- **Objective**: "),
-                PromptSegment.InputField("m1", InputType.SMALL_TEXT, "Finish project"),
-                PromptSegment.StaticText("\n- *Priority*: "),
-                PromptSegment.InputField("m2", InputType.OPTIONS, "Normal", listOf("Low", "Normal", "Urgent"))
-            )
-        ),
-        "JSON/XML Hybrid" to ParsedPromptTemplate(
-            "", listOf(
-                PromptSegment.StaticText("{\n  \"api_key\": \""),
-                PromptSegment.InputField("j1", InputType.SMALL_TEXT, "XYZ-123"),
-                PromptSegment.StaticText("\",\n  \"config\": <SETTING>"),
-                PromptSegment.InputField("j2", InputType.OPTIONS, "ENABLED", listOf("ENABLED", "DISABLED")),
-                PromptSegment.StaticText("</SETTING>\n}")
-            )
-        )
+        "Plain Text Example" to """
+            Hello, my name is <INPUT type="smallText">John</INPUT> and I want to talk about <INPUT>Weather</INPUT>.
+        """.trimIndent(),
+        "Markdown Example" to """
+            # Planning
+            
+            - **Objective**: <INPUT type="smallText">Finish project</INPUT>
+            - *Priority*: <INPUT type="options" values="Low,Normal,Urgent">Normal</INPUT>
+        """.trimIndent(),
+        "JSON/XML Hybrid" to """
+            {
+              "api_key": "<INPUT type="smallText">XYZ-123</INPUT>",
+              "config": <SETTING><INPUT type="options" values="ENABLED,DISABLED">ENABLED</INPUT></SETTING>
+            }
+        """.trimIndent()
     )
+
+    // Using a map to track state for all examples in the preview
+    var inputValues by remember { mutableStateOf(mapOf<String, String>()) }
 
     MamoutTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
@@ -311,7 +294,7 @@ fun InteractivePromptViewerPreview() {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(32.dp)
             ) {
-                examples.forEach { (title, template) ->
+                examples.forEachIndexed { index, (title, promptText) ->
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             text = title,
@@ -325,9 +308,11 @@ fun InteractivePromptViewerPreview() {
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                         ) {
                             InteractivePromptViewer(
-                                template = template,
-                                inputValues = emptyMap(),
-                                onValueChange = { _, _ -> }
+                                promptText = promptText,
+                                inputValues = inputValues,
+                                onValueChange = { id, newValue ->
+                                    inputValues = inputValues + (id to newValue)
+                                }
                             )
                         }
                     }
