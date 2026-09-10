@@ -19,9 +19,6 @@ import it.xyra.mamout.ui.theme.MamoutTheme
 
 /**
  * Main entry point activity for the application.
- *
- * Sets up manual dependency injection for database, repository, and use cases,
- * and sets the main Jetpack Compose content view.
  */
 class MainActivity : ComponentActivity() {
 
@@ -29,7 +26,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Temporary manual dependency injection setup
         val database = AppDatabase.getInstance(applicationContext)
         val repository = PromptRepositoryImpl(database.promptDao())
         val searchPromptsUseCase = SearchPromptsUseCase()
@@ -48,25 +44,10 @@ class MainActivity : ComponentActivity() {
                 PromptListScreen(
                     viewModel = viewModel,
                     onPromptClick = { promptId ->
-                        Toast.makeText(
-                            this,
-                            "Selected prompt ID: $promptId",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    },
-                    onSearchClick = {
-                        Toast.makeText(
-                            this,
-                            "Opening search screen...",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        Toast.makeText(this@MainActivity, "Prompt: $promptId", Toast.LENGTH_SHORT).show()
                     },
                     onAddPromptClick = {
-                        Toast.makeText(
-                            this,
-                            "Creating new prompt...",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        Toast.makeText(this@MainActivity, "Add Prompt", Toast.LENGTH_SHORT).show()
                     },
                     modifier = Modifier.fillMaxSize()
                 )

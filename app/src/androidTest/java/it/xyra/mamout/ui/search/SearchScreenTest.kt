@@ -32,6 +32,7 @@ class SearchScreenTest {
                 query = "Test",
                 results = mockResults,
                 onQueryChange = {},
+                onBackClick = {},
                 onPromptClick = {}
             )
         }
@@ -49,11 +50,12 @@ class SearchScreenTest {
                 query = "Unknown",
                 results = emptyList(),
                 onQueryChange = {},
+                onBackClick = {},
                 onPromptClick = {}
             )
         }
 
         // Then the empty state message should be visible
-        composeTestRule.onNodeWithText("No results found for \"Unknown\"").assertIsDisplayed()
+        composeTestRule.onNodeWithText("No results found").assertIsDisplayed()
     }
 }
