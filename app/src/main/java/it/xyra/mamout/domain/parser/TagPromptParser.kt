@@ -61,9 +61,19 @@ data class ParsedPromptTemplate(
  */
 object TagPromptParser {
 
+    /** The name of the tag used for dynamic input fields. */
+    const val INPUT_TAG = "INPUT"
+
+    /**
+     * Checks if a given tag name corresponds to an input field tag.
+     */
+    fun isInputTag(tagName: String): Boolean {
+        return tagName.equals(INPUT_TAG, ignoreCase = true)
+    }
+
     // Matches the full <INPUT ...>default_value</INPUT> tag structure
     private val inputTagRegex = Regex(
-        """<INPUT\b(?<attributes>[^>]*)>(?<default>.*?)</INPUT>""",
+        """<$INPUT_TAG\b(?<attributes>[^>]*)>(?<default>.*?)</$INPUT_TAG>""",
         RegexOption.DOT_MATCHES_ALL
     )
 
