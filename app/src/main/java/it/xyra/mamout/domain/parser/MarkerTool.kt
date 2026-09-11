@@ -104,11 +104,11 @@ object MarkerTool {
             val endOff = offsetOf(m.endMarker)
 
             if (startOff == null || endOff == null) {
-                Log.w(TAG, "Marker fuori range, salto il match: $m")
+                Log.w(TAG, "Marker out of range, skipping match: $m")
                 continue
             }
             if (startOff > endOff) {
-                Log.w(TAG, "start_marker successivo a end_marker, salto il match: $m")
+                Log.w(TAG, "start_marker after end_marker, skipping match: $m")
                 continue
             }
 
@@ -127,7 +127,7 @@ object MarkerTool {
             val originalContent = text.substring(contentStart, contentEnd)
 
             if (m.matchKind == MatchKind.EDIT && originalContent.isEmpty()) {
-                Log.w(TAG, "Match 'edit' tra ${m.startMarker}-${m.endMarker} si risolve in uno span vuoto.")
+                Log.w(TAG, "Match 'edit' between ${m.startMarker}-${m.endMarker} resolves to an empty span.")
             }
 
             val placeholder = buildInputTagPlaceholder(m, originalContent)
@@ -138,7 +138,7 @@ object MarkerTool {
         val safeResolved = mutableListOf<ResolvedMatch>()
         for (i in resolved.indices) {
             if (i > 0 && resolved[i].contentStart < safeResolved.last().contentEnd) {
-                Log.w(TAG, "Match sovrapposto ignorato (offset ${resolved[i].contentStart})")
+                Log.w(TAG, "Overlapping match ignored (offset ${resolved[i].contentStart})")
                 continue
             }
             safeResolved.add(resolved[i])
