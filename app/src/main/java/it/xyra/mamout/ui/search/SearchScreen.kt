@@ -23,11 +23,23 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import it.xyra.mamout.domain.model.Prompt
+import it.xyra.mamout.ui.promptlist.components.DeleteConfirmationDialog
 import it.xyra.mamout.ui.promptlist.components.PromptCard
 
+/**
+ * Stateful entry point for the standalone Search Screen.
+ *
+ * Observes state from [SearchViewModel] and renders search input, filtering results,
+ * item selection, and deletion confirmation dialogs.
+ *
+ * @param viewModel The state holder for the search screen.
+ * @param onBackClick Callback invoked when the user taps the top app bar navigation back button.
+ * @param onPromptClick Callback invoked when a search result prompt is selected for viewing or editing.
+ */
 @Composable
 fun SearchScreen(
     viewModel: SearchViewModel,
@@ -36,23 +48,48 @@ fun SearchScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    if (uiState.isDeleteDialogVisible) {
+        DeleteConfirmationDialog(
+            onConfirm = viewModel::onDeleteConfirmed,
+            onDismiss = viewModel::onDeleteDialogDismissed
+        )
+    }
+
     SearchContent(
-        query = uiState.query,
-        results = uiState.results,
+        uiState = uiState,
         onQueryChange = viewModel::onQueryChanged,
         onBackClick = onBackClick,
-        onPromptClick = onPromptClick
+        onPromptClick = { prompt ->
+            if (uiState.selectedPromptId != null) {
+                viewModel.onPromptClick(prompt)
+            } else {
+                onPromptClick(prompt)
+            }
+        },
+        onPromptLongClick = viewModel::onPromptLongClick,
+        onDeleteClick = viewModel::onDeleteRequested
     )
 }
 
+/**
+ * Stateless content layout for the search screen.
+ *
+ * @param uiState Current UI state containing query text, search results, and selection states.
+ * @param onQueryChange Callback invoked when the text input changes in the search field.
+ * @param onBackClick Callback invoked to navigate back from the top app bar.
+ * @param onPromptClick Callback invoked when a prompt item is clicked.
+ * @param onPromptLongClick Callback invoked when a prompt item is long-clicked for selection.
+ * @param onDeleteClick Callback invoked to request deletion of a prompt by its identifier.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchContent(
-    query: String,
-    results: List<Prompt>,
+    uiState: SearchUiState,
     onQueryChange: (String) -> Unit,
     onBackClick: () -> Unit,
-    onPromptClick: (Prompt) -> Unit
+    onPromptClick: (Prompt) -> Unit,
+    onPromptLongClick: (Long) -> Unit,
+    onDeleteClick: (Long) -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -75,26 +112,39 @@ fun SearchContent(
                 .padding(padding)
         ) {
             OutlinedTextField(
-                value = query,
+                value = uiState.query,
                 onValueChange = onQueryChange,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 label = { Text("Search prompts") },
                 singleLine = true
             )
 
-            when {
-                query.isEmpty() -> InitialSearchState()
-                results.isEmpty() -> EmptySearchState()
-                else -> SearchResultsList(results, onPromptClick)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .weight(1f)
+                    .clipToBounds()
+            ) {
+                when {
+                    uiState.query.isEmpty() -> InitialSearchState()
+                    uiState.results.isEmpty() -> EmptySearchState()
+                    else -> SearchResultsList(
+                        results = uiState.results,
+                        selectedPromptId = uiState.selectedPromptId,
+                        onPromptClick = onPromptClick,
+                        onPromptLongClick = onPromptLongClick,
+                        onDeleteClick = onDeleteClick
+                    )
+                }
             }
         }
     }
 }
 
 /**
- * UI displayed when the user hasn't started searching yet.
+ * Displays the placeholder UI shown before the user enters a search query.
  */
 @Composable
 fun InitialSearchState() {
@@ -111,7 +161,7 @@ fun InitialSearchState() {
 }
 
 /**
- * Displays a modern placeholder UI when no results match the query.
+ * Displays the empty state UI when no prompt items match the active search query.
  */
 @Composable
 fun EmptySearchState() {
@@ -128,13 +178,21 @@ fun EmptySearchState() {
 }
 
 /**
- * Displays the list of prompt search results using the shared PromptCard component.
- * Configured with the exact same content padding and item gaps as PromptListScreen.
+ * Renders a vertically scrollable list of filtered search result items using [PromptCard].
+ *
+ * @param results List of matching [Prompt] items to display.
+ * @param selectedPromptId The identifier of the currently selected prompt, or null if none is selected.
+ * @param onPromptClick Callback invoked when a result card is clicked.
+ * @param onPromptLongClick Callback invoked when a result card is long-clicked to toggle selection.
+ * @param onDeleteClick Callback invoked to request prompt deletion by its identifier.
  */
 @Composable
 fun SearchResultsList(
     results: List<Prompt>,
-    onPromptClick: (Prompt) -> Unit
+    selectedPromptId: Long?,
+    onPromptClick: (Prompt) -> Unit,
+    onPromptLongClick: (Long) -> Unit,
+    onDeleteClick: (Long) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -142,6 +200,7 @@ fun SearchResultsList(
         contentPadding = PaddingValues(
             start = 16.dp,
             end = 16.dp,
+            top = 16.dp,
             bottom = 80.dp
         )
     ) {
@@ -151,7 +210,10 @@ fun SearchResultsList(
         ) { prompt ->
             PromptCard(
                 prompt = prompt,
-                onPromptClick = { onPromptClick(prompt) }
+                isSelected = prompt.id == selectedPromptId,
+                onPromptClick = { onPromptClick(prompt) },
+                onPromptLongClick = onPromptLongClick,
+                onDeleteClick = { onDeleteClick(prompt.id) }
             )
         }
     }

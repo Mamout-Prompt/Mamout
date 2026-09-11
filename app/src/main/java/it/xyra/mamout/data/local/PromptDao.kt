@@ -79,4 +79,11 @@ interface PromptDao {
      */
     @Delete
     suspend fun deletePrompt(prompt: PromptEntity)
+
+    /**
+     * Deletes a prompt header by its ID. Due to foreign key cascade, this also deletes its content.
+     * @param promptId The ID of the prompt to delete.
+     */
+    @Query("DELETE FROM prompts WHERE id = :promptId")
+    suspend fun deletePromptById(promptId: Long)
 }

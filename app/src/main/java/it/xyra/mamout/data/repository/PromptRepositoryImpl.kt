@@ -64,4 +64,13 @@ class PromptRepositoryImpl(
             templateText = templateText
         )
     }
+
+    /**
+     * Deletes a prompt from the local database by its ID.
+     *
+     * @param promptId The unique identifier of the prompt to delete.
+     */
+    override suspend fun deletePrompt(promptId: Long) {
+        promptDao.deletePromptById(promptId)
+    }
 }

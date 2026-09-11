@@ -16,8 +16,14 @@ sealed interface PromptListUiState {
      * Indicates that the prompt list was loaded successfully and contains items.
      *
      * @property prompts The list of [Prompt] domain models to be displayed.
+     * @property selectedPromptId The ID of the currently selected prompt, or null if none selected.
+     * @property isDeleteDialogVisible Controls the visibility of the delete confirmation dialog.
      */
-    data class Success(val prompts: List<Prompt>) : PromptListUiState
+    data class Success(
+        val prompts: List<Prompt>,
+        val selectedPromptId: Long? = null,
+        val isDeleteDialogVisible: Boolean = false
+    ) : PromptListUiState
 
     /**
      * Indicates that the prompt list was loaded successfully but contains no items.

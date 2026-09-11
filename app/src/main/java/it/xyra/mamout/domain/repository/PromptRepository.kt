@@ -22,4 +22,11 @@ interface PromptRepository {
      * @return A [Flow] emitting a list of [PromptSearchable] domain models.
      */
     fun getSearchablePrompts(): Flow<List<PromptSearchable>>
+
+    /**
+     * Deletes a prompt and its associated content by its ID.
+     *
+     * @param promptId The unique identifier of the prompt to delete.
+     */
+    suspend fun deletePrompt(promptId: Long)
 }
