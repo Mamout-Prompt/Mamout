@@ -1,9 +1,11 @@
 package it.xyra.mamout.domain.usecase
 
+import it.xyra.mamout.domain.model.MetaPromptResponse
 import it.xyra.mamout.domain.model.PromptMatch
 import it.xyra.mamout.domain.parser.MarkerTool
 import it.xyra.mamout.domain.parser.ParsedPromptTemplate
 import it.xyra.mamout.domain.parser.TagPromptParser
+import kotlinx.serialization.json.Json
 
 class TemplatizePromptUseCase {
 
@@ -108,6 +110,11 @@ class TemplatizePromptUseCase {
     fun preparePromptForLlm(originalPrompt: String): String {
         val (markedText, _) = MarkerTool.markText(originalPrompt)
         return metaPromptTemplate.replace("{{marked_text}}", markedText)
+    }
+
+    fun templatize(originalPrompt: String, llmJsonResponse: String): ParsedPromptTemplate {
+        val response = Json { ignoreUnknownKeys = true }.decodeFromString<MetaPromptResponse>(llmJsonResponse)
+        return processLlmResponse(originalPrompt, response.matches)
     }
 
     fun processLlmResponse(originalPrompt: String, matches: List<PromptMatch>): ParsedPromptTemplate {

@@ -5,6 +5,8 @@ import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -13,6 +15,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -31,6 +36,7 @@ import it.xyra.mamout.ui.theme.MamoutTheme
  * @param template The parsed prompt template containing static text and input fields.
  * @param inputValues A map of current values for each input field ID.
  * @param onValueChange Callback triggered when an input field's value is modified.
+ * @param targetedInputIndex The index of the input field that should be scrolled into view/focused.
  * @param modifier The modifier to be applied to the root container.
  */
 @Composable
@@ -38,33 +44,45 @@ fun InteractivePromptViewer(
     promptText: String,
     inputValues: Map<String, String>,
     onValueChange: (id: String, newValue: String) -> Unit,
+    targetedInputIndex: Int = -1,
     modifier: Modifier = Modifier
 ) {
     val parsedTemplate = remember(promptText) { TagPromptParser.parse(promptText) }
-    
+
     InteractivePromptViewer(
         template = parsedTemplate,
         inputValues = inputValues,
         onValueChange = onValueChange,
+        targetedInputIndex = targetedInputIndex,
         modifier = modifier
     )
 }
 
 /**
  * A shared stateless component that renders a prompt template with interactive input fields.
- *
- * @param template The parsed prompt template containing static text and input fields.
- * @param inputValues A map of current values for each input field ID.
- * @param onValueChange Callback triggered when an input field's value is modified.
- * @param modifier The modifier to be applied to the root container.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun InteractivePromptViewer(
     template: ParsedPromptTemplate,
     inputValues: Map<String, String>,
     onValueChange: (id: String, newValue: String) -> Unit,
+    targetedInputIndex: Int = -1,
     modifier: Modifier = Modifier
 ) {
+    var inputCounter = 0
+
+    // JSON-block context is a fact about the *whole* template's brace balance, so it
+    // must be computed once across all StaticText segments in order — not per
+    // segment in isolation — otherwise a `{` opened before an <INPUT> field would be
+    // invisible to the fragment that follows it. See PromptVisualizerEngine docs.
+    val jsonBlockContext = remember(template) {
+        PromptVisualizerEngine.computeJsonBlockContext(
+            template.segments.filterIsInstance<PromptSegment.StaticText>().map { it.text }
+        )
+    }
+    var staticTextIndex = 0
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -74,18 +92,48 @@ fun InteractivePromptViewer(
             when (segment) {
                 is PromptSegment.StaticText -> {
                     if (segment.text.isNotBlank()) {
+                        val forceJsonContext = jsonBlockContext.getOrElse(staticTextIndex) { false }
                         Text(
-                            text = PromptVisualizerEngine.highlight(segment.text),
+                            text = remember(segment.text, forceJsonContext) {
+                                PromptVisualizerEngine.highlight(segment.text, forceJsonContext)
+                            },
                             style = MaterialTheme.typography.bodyLarge,
                             modifier = Modifier.padding(vertical = 4.dp)
                         )
                     }
+                    staticTextIndex++
                 }
                 is PromptSegment.InputField -> {
+                    val currentIndex = inputCounter++
+                    val isTargeted = currentIndex == targetedInputIndex
+                    val bringIntoViewRequester = remember { BringIntoViewRequester() }
+                    val focusRequester = remember { FocusRequester() }
+
+                    LaunchedEffect(isTargeted) {
+                        if (isTargeted) {
+                            // Request focus to show IME if needed
+                            focusRequester.requestFocus()
+
+                            // Bring into view with "comfort" padding (e.g. 200px above and below)
+                            // This effectively centers the item if the container is large enough
+                            bringIntoViewRequester.bringIntoView(
+                                rect = Rect(
+                                    left = 0f,
+                                    top = -400f,
+                                    right = 0f,
+                                    bottom = 800f
+                                )
+                            )
+                        }
+                    }
+
                     PromptInputField(
                         field = segment,
                         currentValue = inputValues[segment.id] ?: segment.defaultValue,
-                        onValueChange = { newValue -> onValueChange(segment.id, newValue) }
+                        onValueChange = { newValue -> onValueChange(segment.id, newValue) },
+                        modifier = Modifier
+                            .bringIntoViewRequester(bringIntoViewRequester)
+                            .focusRequester(focusRequester)
                     )
                 }
             }
@@ -100,10 +148,11 @@ fun InteractivePromptViewer(
 private fun PromptInputField(
     field: PromptSegment.InputField,
     currentValue: String,
-    onValueChange: (String) -> Unit
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp)
     ) {
@@ -197,17 +246,31 @@ private fun WheelPickerPopup(
     val itemHeight = 48.dp
     val visibleItems = 3
     val initialIndex = options.indexOf(initialValue).coerceAtLeast(0)
-    
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
     val snappingLayout = rememberSnapFlingBehavior(lazyListState = listState)
 
-    // Automatically update the value when the scroll settles
+    // Rather than deriving the centered item from firstVisibleItemIndex/ScrollOffset
+    // and contentPadding (whose exact interaction is easy to get subtly wrong — this
+    // file's previous version had exactly that bug), we ask the layout directly: once
+    // scrolling has settled, layoutInfo.visibleItemsInfo gives each visible item's
+    // actual on-screen bounds, so we can find whichever item's center is closest to
+    // the viewport's center. This is correct regardless of padding/offset conventions.
+    val viewportCenterIndex by remember {
+        derivedStateOf {
+            val layoutInfo = listState.layoutInfo
+            val viewportCenter =
+                (layoutInfo.viewportStartOffset + layoutInfo.viewportEndOffset) / 2
+            layoutInfo.visibleItemsInfo.minByOrNull { item ->
+                kotlin.math.abs((item.offset + item.size / 2) - viewportCenter)
+            }?.index ?: initialIndex
+        }
+    }
+
+    // Fire onValueChange once scrolling settles, using the same index that drives
+    // the visual highlight below — the two can never disagree with each other.
     LaunchedEffect(listState.isScrollInProgress) {
-        if (!listState.isScrollInProgress) {
-            val selectedIndex = listState.firstVisibleItemIndex
-            if (selectedIndex in options.indices) {
-                onValueChange(options[selectedIndex])
-            }
+        if (!listState.isScrollInProgress && viewportCenterIndex in options.indices) {
+            onValueChange(options[viewportCenterIndex])
         }
     }
 
@@ -244,7 +307,7 @@ private fun WheelPickerPopup(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     items(options.size) { index ->
-                        val isSelected = listState.firstVisibleItemIndex == index
+                        val isSelected = viewportCenterIndex == index
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
