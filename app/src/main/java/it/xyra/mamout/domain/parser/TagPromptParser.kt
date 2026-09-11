@@ -1,20 +1,6 @@
 package it.xyra.mamout.domain.parser
 
 /**
- * Represents the UI control types available for dynamic input fields.
- */
-enum class InputType {
-    /** Multiline text field for longer text entries. */
-    TEXT,
-
-    /** Single-line text field for short text entries. */
-    SMALL_TEXT,
-
-    /** Dropdown menu for selecting from a predefined list of options. */
-    OPTIONS
-}
-
-/**
  * Represents a segment of a parsed prompt template, which can be either static text or a dynamic input field.
  */
 sealed class PromptSegment {
@@ -106,11 +92,7 @@ object TagPromptParser {
             val typeStr = typeAttributeRegex.find(attributesString)?.groupValues?.get(1)
             val valuesStr = valuesAttributeRegex.find(attributesString)?.groupValues?.get(1)
 
-            val inputType = when (typeStr) {
-                "smallText" -> InputType.SMALL_TEXT
-                "options" -> InputType.OPTIONS
-                else -> InputType.TEXT
-            }
+            val inputType = InputType.fromKey(typeStr)
 
             val optionsList = if (inputType == InputType.OPTIONS && !valuesStr.isNullOrEmpty()) {
                 valuesStr.split(",").map { it.trim() }
