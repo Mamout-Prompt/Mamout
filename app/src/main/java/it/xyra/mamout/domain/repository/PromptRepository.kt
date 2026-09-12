@@ -52,4 +52,13 @@ interface PromptRepository {
      * @param promptId The unique identifier of the prompt to delete.
      */
     suspend fun deletePrompt(promptId: Long)
+
+    /**
+     * Saves a new prompt with its header and content.
+     *
+     * @param title The title of the prompt.
+     * @param description The description of the prompt.
+     * @param templateText The raw template text.
+     */
+    suspend fun savePrompt(title: String, description: String, templateText: String)
 }

@@ -26,6 +26,8 @@ import androidx.navigation.navArgument
 import it.xyra.mamout.data.local.AppDatabase
 import it.xyra.mamout.data.repository.PromptRepositoryImpl
 import it.xyra.mamout.domain.usecase.SearchPromptsUseCase
+import it.xyra.mamout.ui.addprompt.AddPromptScreen
+import it.xyra.mamout.ui.addprompt.AddPromptViewModel
 import it.xyra.mamout.ui.promptdetail.PromptDetailScreen
 import it.xyra.mamout.ui.promptdetail.PromptDetailViewModel
 import it.xyra.mamout.ui.promptlist.PromptListScreen
@@ -80,7 +82,30 @@ class MainActivity : ComponentActivity() {
                                     onPromptClick = { promptId ->
                                         navController.navigate("prompt_detail/$promptId")
                                     },
-                                    onAddPromptClick = { /* Navigate to creation */ },
+                                    onAddPromptClick = { navController.navigate("add_prompt") },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+
+                            composable(
+                                route = "add_prompt",
+                                enterTransition = { EnterTransition.None },
+                                exitTransition = { ExitTransition.None },
+                                popEnterTransition = { EnterTransition.None },
+                                popExitTransition = { ExitTransition.None }
+                            ) {
+                                val addPromptViewModel: AddPromptViewModel = viewModel(
+                                    factory = object : ViewModelProvider.Factory {
+                                        @Suppress("UNCHECKED_CAST")
+                                        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                                            return AddPromptViewModel(repository) as T
+                                        }
+                                    }
+                                )
+
+                                AddPromptScreen(
+                                    viewModel = addPromptViewModel,
+                                    onBack = { navController.popBackStack() },
                                     modifier = Modifier.fillMaxSize()
                                 )
                             }
