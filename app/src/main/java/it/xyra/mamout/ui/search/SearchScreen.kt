@@ -1,5 +1,8 @@
 package it.xyra.mamout.ui.search
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,16 +36,21 @@ import it.xyra.mamout.ui.promptlist.components.PromptCard
 /**
  * Stateful entry point for the standalone Search Screen.
  *
- * Observes state from [SearchViewModel] and renders search input, filtering results,
+ * Observes state from [SearchViewModel] and renders search input, filtered results,
  * item selection, and deletion confirmation dialogs.
  *
- * @param viewModel The state holder for the search screen.
- * @param onBackClick Callback invoked when the user taps the top app bar navigation back button.
- * @param onPromptClick Callback invoked when a search result prompt is selected for viewing or editing.
+ * @param viewModel The state holder managing UI state and search logic.
+ * @param sharedTransitionScope Scope required for shared element transitions.
+ * @param animatedVisibilityScope Scope required for visibility-driven transitions.
+ * @param onBackClick Callback invoked when navigating back to the previous screen.
+ * @param onPromptClick Callback invoked when a search result prompt is selected.
  */
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun SearchScreen(
     viewModel: SearchViewModel,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onBackClick: () -> Unit,
     onPromptClick: (Prompt) -> Unit
 ) {
@@ -57,11 +65,13 @@ fun SearchScreen(
 
     SearchContent(
         uiState = uiState,
+        sharedTransitionScope = sharedTransitionScope,
+        animatedVisibilityScope = animatedVisibilityScope,
         onQueryChange = viewModel::onQueryChanged,
         onBackClick = onBackClick,
         onPromptClick = { prompt ->
             if (uiState.selectedPromptId != null) {
-                viewModel.onPromptClick(prompt)
+                viewModel.onPromptClick()
             } else {
                 onPromptClick(prompt)
             }
@@ -74,17 +84,24 @@ fun SearchScreen(
 /**
  * Stateless content layout for the search screen.
  *
- * @param uiState Current UI state containing query text, search results, and selection states.
- * @param onQueryChange Callback invoked when the text input changes in the search field.
- * @param onBackClick Callback invoked to navigate back from the top app bar.
+ * Displays top app bar navigation, a search query text field, and renders conditional content
+ * based on search query state and results.
+ *
+ * @param uiState The current [SearchUiState] to display.
+ * @param sharedTransitionScope Scope required for shared element transitions.
+ * @param animatedVisibilityScope Scope required for visibility-driven transitions.
+ * @param onQueryChange Callback invoked when the search query text changes.
+ * @param onBackClick Callback invoked when navigating back.
  * @param onPromptClick Callback invoked when a prompt item is clicked.
- * @param onPromptLongClick Callback invoked when a prompt item is long-clicked for selection.
- * @param onDeleteClick Callback invoked to request deletion of a prompt by its identifier.
+ * @param onPromptLongClick Callback invoked when a prompt item is long-clicked.
+ * @param onDeleteClick Callback invoked when prompt deletion is requested.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun SearchContent(
     uiState: SearchUiState,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onQueryChange: (String) -> Unit,
     onBackClick: () -> Unit,
     onPromptClick: (Prompt) -> Unit,
@@ -133,6 +150,8 @@ fun SearchContent(
                     else -> SearchResultsList(
                         results = uiState.results,
                         selectedPromptId = uiState.selectedPromptId,
+                        sharedTransitionScope = sharedTransitionScope,
+                        animatedVisibilityScope = animatedVisibilityScope,
                         onPromptClick = onPromptClick,
                         onPromptLongClick = onPromptLongClick,
                         onDeleteClick = onDeleteClick
@@ -144,7 +163,7 @@ fun SearchContent(
 }
 
 /**
- * Displays the placeholder UI shown before the user enters a search query.
+ * Displays placeholder UI before the user enters a search query.
  */
 @Composable
 fun InitialSearchState() {
@@ -161,7 +180,7 @@ fun InitialSearchState() {
 }
 
 /**
- * Displays the empty state UI when no prompt items match the active search query.
+ * Displays empty state UI when no prompt items match the active search query.
  */
 @Composable
 fun EmptySearchState() {
@@ -180,16 +199,21 @@ fun EmptySearchState() {
 /**
  * Renders a vertically scrollable list of filtered search result items using [PromptCard].
  *
- * @param results List of matching [Prompt] items to display.
- * @param selectedPromptId The identifier of the currently selected prompt, or null if none is selected.
- * @param onPromptClick Callback invoked when a result card is clicked.
- * @param onPromptLongClick Callback invoked when a result card is long-clicked to toggle selection.
- * @param onDeleteClick Callback invoked to request prompt deletion by its identifier.
+ * @param results List of [Prompt] domain models matching the search query.
+ * @param selectedPromptId Identifier of the currently selected prompt item, or `null`.
+ * @param sharedTransitionScope Scope required for shared element transitions.
+ * @param animatedVisibilityScope Scope required for visibility-driven transitions.
+ * @param onPromptClick Callback invoked when a prompt item is clicked.
+ * @param onPromptLongClick Callback invoked when a prompt item is long-clicked.
+ * @param onDeleteClick Callback invoked when prompt deletion is requested.
  */
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun SearchResultsList(
     results: List<Prompt>,
     selectedPromptId: Long?,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onPromptClick: (Prompt) -> Unit,
     onPromptLongClick: (Long) -> Unit,
     onDeleteClick: (Long) -> Unit
@@ -211,6 +235,8 @@ fun SearchResultsList(
             PromptCard(
                 prompt = prompt,
                 isSelected = prompt.id == selectedPromptId,
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
                 onPromptClick = { onPromptClick(prompt) },
                 onPromptLongClick = onPromptLongClick,
                 onDeleteClick = { onDeleteClick(prompt.id) }

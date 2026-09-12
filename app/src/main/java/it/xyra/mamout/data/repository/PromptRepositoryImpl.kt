@@ -10,18 +10,19 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 /**
- * Concrete implementation of [PromptRepository] interfacing with the local Room database.
+ * Concrete implementation of [PromptRepository] that manages prompt data operations
+ * using [PromptDao] as the local data source.
  *
- * @property promptDao The Data Access Object for local database operations.
+ * @property promptDao The Data Access Object providing database access operations.
  */
 class PromptRepositoryImpl(
     private val promptDao: PromptDao
 ) : PromptRepository {
 
     /**
-     * Retrieves all saved prompts from the local database and maps them to domain models.
+     * Retrieves all prompt headers from the database and maps them to domain models.
      *
-     * @return A [Flow] emitting a list of [Prompt] domain models.
+     * @return A [Flow] emitting the list of all [Prompt] domain models.
      */
     override fun getPrompts(): Flow<List<Prompt>> {
         return promptDao.getPrompts().map { entities ->
@@ -30,7 +31,8 @@ class PromptRepositoryImpl(
     }
 
     /**
-     * Retrieves searchable prompt projections from the local database and maps them to domain models.
+     * Retrieves all searchable prompts (headers combined with template content) from the database
+     * and maps them to domain models.
      *
      * @return A [Flow] emitting a list of [PromptSearchable] domain models.
      */
@@ -41,7 +43,53 @@ class PromptRepositoryImpl(
     }
 
     /**
-     * Extension function to map a [PromptEntity] database model to a [Prompt] domain model.
+     * Retrieves a single searchable prompt by its unique identifier and maps it to a domain model.
+     *
+     * @param promptId The unique identifier of the prompt to retrieve.
+     * @return A [Flow] emitting the matching [PromptSearchable] domain model, or `null` if not found.
+     */
+    override fun getPromptById(promptId: Long): Flow<PromptSearchable?> {
+        return promptDao.getSearchablePromptById(promptId).map { it?.toDomainModel() }
+    }
+
+    /**
+     * Updates an existing prompt header details and its raw template content in the database.
+     *
+     * @param promptId The unique identifier of the prompt to update.
+     * @param title The updated title of the prompt.
+     * @param description The updated description of the prompt.
+     * @param templateText The updated raw template text.
+     */
+    override suspend fun updatePrompt(
+        promptId: Long,
+        title: String,
+        description: String,
+        templateText: String
+    ) {
+        promptDao.updatePrompt(
+            PromptEntity(
+                id = promptId,
+                title = title,
+                description = description
+            )
+        )
+        promptDao.updatePromptContent(
+            promptId = promptId,
+            templateText = templateText
+        )
+    }
+
+    /**
+     * Deletes a prompt and its associated content from the database by its unique identifier.
+     *
+     * @param promptId The unique identifier of the prompt to delete.
+     */
+    override suspend fun deletePrompt(promptId: Long) {
+        promptDao.deletePromptById(promptId)
+    }
+
+    /**
+     * Maps a database [PromptEntity] to a domain [Prompt] model.
      */
     private fun PromptEntity.toDomainModel(): Prompt {
         return Prompt(
@@ -52,7 +100,7 @@ class PromptRepositoryImpl(
     }
 
     /**
-     * Extension function to map a [PromptSearchableDb] database projection to a [PromptSearchable] domain model.
+     * Maps a database projection [PromptSearchableDb] to a domain [PromptSearchable] model.
      */
     private fun PromptSearchableDb.toDomainModel(): PromptSearchable {
         return PromptSearchable(
@@ -63,14 +111,5 @@ class PromptRepositoryImpl(
             ),
             templateText = templateText
         )
-    }
-
-    /**
-     * Deletes a prompt from the local database by its ID.
-     *
-     * @param promptId The unique identifier of the prompt to delete.
-     */
-    override suspend fun deletePrompt(promptId: Long) {
-        promptDao.deletePromptById(promptId)
     }
 }

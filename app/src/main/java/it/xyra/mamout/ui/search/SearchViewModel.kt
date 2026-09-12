@@ -14,13 +14,13 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * Represents the UI state for the search screen.
+ * Represents the UI state for the search feature.
  *
- * @property query The current search query text entered by the user.
- * @property results The list of prompts that match the active search query.
- * @property isSearching Indicates whether a search operation is currently in progress.
- * @property selectedPromptId The identifier of the currently selected prompt item, or null if none is selected.
- * @property promptToDeleteId The identifier of the prompt marked for deletion, or null if no deletion is pending.
+ * @property query The active search query string.
+ * @property results The list of [Prompt] domain models matching the active search query.
+ * @property isSearching Indicates whether a search query operation is currently being processed.
+ * @property selectedPromptId The ID of the currently selected prompt item, or `null` if no item is selected.
+ * @property promptToDeleteId The ID of the prompt targeted for deletion, or `null` if no deletion is pending.
  * @property isDeleteDialogVisible Indicates whether the delete confirmation dialog is currently displayed.
  */
 data class SearchUiState(
@@ -33,10 +33,13 @@ data class SearchUiState(
 )
 
 /**
- * ViewModel responsible for managing search logic, item selection, and prompt deletion states on the search screen.
+ * ViewModel responsible for managing search execution and UI state transitions.
  *
- * @property repository The repository providing access to prompt data and deletion operations.
- * @property searchPromptsUseCase The use case responsible for filtering prompts based on the search query.
+ * Combines search queries with searchable prompt streams from the repository, applying
+ * filtering logic via [SearchPromptsUseCase] and handling item actions such as deletion.
+ *
+ * @property repository Repository providing prompt data operations.
+ * @property searchPromptsUseCase Use case executing search filter algorithms against prompt items.
  */
 class SearchViewModel(
     private val repository: PromptRepository,
@@ -47,7 +50,7 @@ class SearchViewModel(
     private val _uiState = MutableStateFlow(SearchUiState())
 
     /**
-     * StateFlow exposing the current state of the search screen.
+     * The observable UI state stream for the search feature.
      */
     val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
 
@@ -65,9 +68,9 @@ class SearchViewModel(
     }
 
     /**
-     * Updates the current search query and triggers filtered prompt computation.
+     * Updates the active search query string and sets search execution status.
      *
-     * @param newQuery The new search query string.
+     * @param newQuery The updated search query string.
      */
     fun onQueryChanged(newQuery: String) {
         _uiState.update { it.copy(isSearching = true) }
@@ -75,20 +78,16 @@ class SearchViewModel(
     }
 
     /**
-     * Handles single click interactions on prompt items.
-     *
-     * Toggles selection mode if an item is already selected.
-     *
-     * @param prompt The prompt item that was clicked.
+     * Clears current selection state if a prompt is selected.
      */
-    fun onPromptClick(prompt: Prompt) {
+    fun onPromptClick() {
         if (_uiState.value.selectedPromptId != null) {
-            onPromptLongClick(prompt.id)
+            _uiState.update { it.copy(selectedPromptId = null) }
         }
     }
 
     /**
-     * Toggles the selection state of a prompt item on long click.
+     * Handles long-click interactions on a prompt item to toggle its selection state.
      *
      * @param promptId The unique identifier of the target prompt.
      */
@@ -99,9 +98,9 @@ class SearchViewModel(
     }
 
     /**
-     * Displays the confirmation dialog to delete a specific prompt.
+     * Prepares a prompt for deletion and displays the confirmation dialog.
      *
-     * @param promptId The unique identifier of the prompt requested for deletion.
+     * @param promptId The unique identifier of the prompt to delete.
      */
     fun onDeleteRequested(promptId: Long) {
         _uiState.update {
@@ -113,7 +112,7 @@ class SearchViewModel(
     }
 
     /**
-     * Confirms and performs prompt deletion via repository, then resets selection states.
+     * Confirms and executes prompt deletion using the repository, resetting deletion state upon completion.
      */
     fun onDeleteConfirmed() {
         val idToDelete = _uiState.value.promptToDeleteId ?: return
@@ -130,7 +129,7 @@ class SearchViewModel(
     }
 
     /**
-     * Dismisses the prompt deletion confirmation dialog without performing deletion.
+     * Dismisses the prompt deletion confirmation dialog without modifying data.
      */
     fun onDeleteDialogDismissed() {
         _uiState.update {

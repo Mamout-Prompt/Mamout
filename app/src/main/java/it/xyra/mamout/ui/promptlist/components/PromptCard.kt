@@ -1,6 +1,9 @@
 package it.xyra.mamout.ui.promptlist.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -29,83 +32,95 @@ import androidx.compose.ui.unit.dp
 import it.xyra.mamout.domain.model.Prompt
 
 /**
- * Card component representing an individual prompt item.
- * Supports long click to toggle selection state and displays a delete action when selected.
+ * Card composable representing an individual prompt item in a list or search result grid.
  *
- * @param prompt The prompt domain model to display.
- * @param isSelected Whether this card is currently selected.
- * @param onPromptClick Callback invoked on a standard click.
- * @param onPromptLongClick Callback invoked on a long press.
- * @param onDeleteClick Callback invoked when the delete icon is tapped.
- * @param modifier Modifier to be applied to the card.
+ * Displays the prompt title and description, supports shared element transitions during navigation,
+ * and provides click, long-click selection state feedback, and deletion triggers.
+ *
+ * @param prompt The [Prompt] domain model to display.
+ * @param isSelected Indicates whether the prompt card is currently selected.
+ * @param sharedTransitionScope Scope required for shared element transition bounds.
+ * @param animatedVisibilityScope Scope required for visibility-driven transitions.
+ * @param onPromptClick Callback invoked when the prompt card is clicked, passing the prompt ID.
+ * @param onPromptLongClick Callback invoked when the prompt card is long-clicked, passing the prompt ID.
+ * @param onDeleteClick Callback invoked when the delete icon button is tapped.
+ * @param modifier Optional [Modifier] applied to the card layout.
  */
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun PromptCard(
     prompt: Prompt,
     isSelected: Boolean,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onPromptClick: (Long) -> Unit,
     onPromptLongClick: (Long) -> Unit,
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant
-            }
-        ),
-        modifier = modifier
-            .fillMaxWidth()
-            .combinedClickable(
-                onClick = { onPromptClick(prompt.id) },
-                onLongClick = { onPromptLongClick(prompt.id) }
-            )
-    ) {
-        Box(
-            modifier = Modifier
+    with(sharedTransitionScope) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (isSelected) {
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant
+                }
+            ),
+            modifier = modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .sharedBounds(
+                    rememberSharedContentState(key = "prompt-container-${prompt.id}"),
+                    animatedVisibilityScope = animatedVisibilityScope
+                )
+                .combinedClickable(
+                    onClick = { onPromptClick(prompt.id) },
+                    onLongClick = { onPromptLongClick(prompt.id) }
+                )
         ) {
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(end = if (isSelected) 40.dp else 0.dp)
+                    .padding(16.dp)
             ) {
-                Text(
-                    text = prompt.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = prompt.description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            Row(
-                modifier = Modifier.align(Alignment.CenterEnd)
-            ) {
-                AnimatedVisibility(
-                    visible = isSelected,
-                    enter = fadeIn(),
-                    exit = fadeOut()
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(end = if (isSelected) 40.dp else 0.dp)
                 ) {
-                    IconButton(onClick = onDeleteClick) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Delete prompt",
-                            tint = MaterialTheme.colorScheme.error
-                        )
+                    Text(
+                        text = prompt.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = prompt.description,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.align(Alignment.CenterEnd)
+                ) {
+                    AnimatedVisibility(
+                        visible = isSelected,
+                        enter = fadeIn(),
+                        exit = fadeOut()
+                    ) {
+                        IconButton(onClick = onDeleteClick) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete prompt",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
                     }
                 }
             }
