@@ -180,7 +180,8 @@ fun PromptListScreen(
                                     )
                                 }
                             }
-                            is PromptListUiState.Empty -> {
+                            is PromptListUiState.Empty,
+                            is PromptListUiState.NoResults -> {
                                 EmptySearchState()
                             }
                             is PromptListUiState.Success -> {
@@ -217,6 +218,11 @@ fun PromptListScreen(
                     is PromptListUiState.Loading -> CircularProgressIndicator()
                     is PromptListUiState.Empty -> Text(
                         text = "No prompts saved",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    is PromptListUiState.NoResults -> Text(
+                        text = "No results for \"${state.query}\"",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

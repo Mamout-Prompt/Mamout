@@ -17,7 +17,8 @@ sealed class PromptSegment {
     /**
      * Dynamic input field extracted from an `<INPUT>` tag.
      *
-     * @property id Unique identifier for this input field (e.g., "input_0").
+     * @property id Unique identifier for this input field, derived from its character
+     * offset in the source template (e.g., "input_42" for a tag starting at index 42).
      * @property type The UI control type required to render this field.
      * @property defaultValue Default fallback value specified inside the `<INPUT>` tag.
      * @property options Predefined choices when [type] is [InputType.OPTIONS].
@@ -70,6 +71,14 @@ object TagPromptParser {
     /**
      * Parses a raw prompt template containing `<INPUT>` tags into structured segments.
      *
+     * Each [PromptSegment.InputField.id] is derived from the tag's character offset in
+     * [templateText] (e.g. `"input_42"` for a tag starting at index 42), not from its
+     * ordinal position among matches. An offset-based id stays the same across re-parses
+     * as long as that specific tag's own text doesn't move — inserting or removing an
+     * `<INPUT>` tag elsewhere in the template no longer shifts the ids of tags that come
+     * after it, which is what happens with a plain sequential counter and silently
+     * orphans previously entered [buildFinalPrompt] input values.
+     *
      * @param templateText The raw prompt template string to parse.
      * @return A [ParsedPromptTemplate] containing the ordered list of segments.
      */
@@ -77,7 +86,7 @@ object TagPromptParser {
         val segments = mutableListOf<PromptSegment>()
         var lastIndex = 0
 
-        inputTagRegex.findAll(templateText).forEachIndexed { index, matchResult ->
+        inputTagRegex.findAll(templateText).forEach { matchResult ->
             // 1. Extract and append static text preceding the current <INPUT> tag
             if (matchResult.range.first > lastIndex) {
                 val staticChunk = templateText.substring(lastIndex, matchResult.range.first)
@@ -100,10 +109,10 @@ object TagPromptParser {
                 emptyList()
             }
 
-            // 4. Create and append the InputField segment
+            // 4. Create and append the InputField segment, id keyed by character offset
             segments.add(
                 PromptSegment.InputField(
-                    id = "input_$index",
+                    id = "input_${matchResult.range.first}",
                     type = inputType,
                     defaultValue = defaultValue,
                     options = optionsList

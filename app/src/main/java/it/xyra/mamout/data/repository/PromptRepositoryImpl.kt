@@ -1,6 +1,5 @@
 package it.xyra.mamout.data.repository
 
-import it.xyra.mamout.data.local.PromptContentEntity
 import it.xyra.mamout.data.local.PromptDao
 import it.xyra.mamout.data.local.PromptEntity
 import it.xyra.mamout.data.local.PromptSearchableDb
@@ -82,13 +81,14 @@ class PromptRepositoryImpl(
 
     /**
      * Saves a new prompt with its header and content.
+     *
+     * Both inserts happen atomically (see [PromptDao.insertPromptWithContent]) so a crash
+     * mid-save can never leave a prompt header without its content.
      */
     override suspend fun savePrompt(title: String, description: String, templateText: String) {
-        val promptId = promptDao.insertPrompt(
-            PromptEntity(title = title, description = description)
-        )
-        promptDao.insertContent(
-            PromptContentEntity(promptId = promptId, templateText = templateText)
+        promptDao.insertPromptWithContent(
+            prompt = PromptEntity(title = title, description = description),
+            templateText = templateText
         )
     }
 
