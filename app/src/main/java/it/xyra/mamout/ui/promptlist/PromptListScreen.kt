@@ -1,5 +1,8 @@
 package it.xyra.mamout.ui.promptlist
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
@@ -46,18 +49,24 @@ import it.xyra.mamout.ui.search.InitialSearchState
 import it.xyra.mamout.ui.search.SearchResultsList
 
 /**
- * Displays the main screen containing the interactive prompt list, search overlay bar,
- * floating creation action button, and deletion confirmation dialog.
+ * Main screen composable displaying the list of saved prompts and search functionalities.
  *
- * @param viewModel The state holder managing UI states and user interactions for this screen.
- * @param onPromptClick Callback invoked when a prompt item is selected for viewing or editing.
- * @param onAddPromptClick Callback invoked when the user taps the floating action button to create a new prompt.
- * @param modifier The [Modifier] to be applied to the layout root.
+ * Provides an expandable search bar, a floating action button for prompt creation, deletion confirmation dialogs,
+ * and support for shared element transitions when navigating to prompt details.
+ *
+ * @param viewModel The [PromptListViewModel] instance managing state and user actions.
+ * @param sharedTransitionScope The shared transition scope used for shared element animations.
+ * @param animatedVisibilityScope The animated visibility scope managing navigation transitions.
+ * @param onPromptClick Callback invoked when a prompt item is clicked, passing its unique ID.
+ * @param onAddPromptClick Callback invoked when the add prompt button is tapped.
+ * @param modifier Optional [Modifier] applied to the screen layout.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun PromptListScreen(
     viewModel: PromptListViewModel,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onPromptClick: (Long) -> Unit,
     onAddPromptClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -66,7 +75,6 @@ fun PromptListScreen(
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     var isSearchActive by rememberSaveable { mutableStateOf(false) }
 
-    // Smoothly animates the horizontal padding of the SearchBar when entering or exiting active state.
     val animatedHorizontalPadding by animateDpAsState(
         targetValue = if (isSearchActive) 0.dp else 16.dp,
         animationSpec = tween(durationMillis = 10),
@@ -97,7 +105,6 @@ fun PromptListScreen(
                 .fillMaxSize()
                 .padding(bottom = innerPadding.calculateBottomPadding())
         ) {
-            // Top header containing the interactive SearchBar anchor
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -150,7 +157,6 @@ fun PromptListScreen(
                             bottom = 8.dp
                         )
                 ) {
-                    // Content displayed inside the expanded search view overlay
                     if (searchQuery.isEmpty()) {
                         InitialSearchState()
                     } else {
@@ -181,6 +187,8 @@ fun PromptListScreen(
                                 SearchResultsList(
                                     results = state.prompts,
                                     selectedPromptId = state.selectedPromptId,
+                                    sharedTransitionScope = sharedTransitionScope,
+                                    animatedVisibilityScope = animatedVisibilityScope,
                                     onPromptClick = { prompt ->
                                         if (state.selectedPromptId != null) {
                                             viewModel.onPromptClick(prompt.id)
@@ -190,7 +198,7 @@ fun PromptListScreen(
                                         }
                                     },
                                     onPromptLongClick = viewModel::onPromptLongClick,
-                                    onDeleteClick = { viewModel.onDeleteRequested() }
+                                    onDeleteClick = { promptId -> viewModel.onDeleteRequested(promptId) }
                                 )
                             }
                         }
@@ -198,7 +206,6 @@ fun PromptListScreen(
                 }
             }
 
-            // Main body section containing the primary prompt list
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -243,6 +250,8 @@ fun PromptListScreen(
                                 PromptCard(
                                     prompt = prompt,
                                     isSelected = prompt.id == state.selectedPromptId,
+                                    sharedTransitionScope = sharedTransitionScope,
+                                    animatedVisibilityScope = animatedVisibilityScope,
                                     onPromptClick = { id ->
                                         if (state.selectedPromptId != null) {
                                             viewModel.onPromptClick(id)
@@ -251,7 +260,7 @@ fun PromptListScreen(
                                         }
                                     },
                                     onPromptLongClick = viewModel::onPromptLongClick,
-                                    onDeleteClick = viewModel::onDeleteRequested
+                                    onDeleteClick = { viewModel.onDeleteRequested(prompt.id) }
                                 )
                             }
                         }

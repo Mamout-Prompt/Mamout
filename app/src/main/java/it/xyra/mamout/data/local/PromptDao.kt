@@ -60,6 +60,25 @@ interface PromptDao {
     fun getSearchablePrompts(): Flow<List<PromptSearchableDb>>
 
     /**
+     * Retrieves a single searchable prompt database projection by its unique identifier.
+     *
+     * Joins the prompt header details with its associated content template.
+     *
+     * @param promptId The unique identifier of the prompt to retrieve.
+     * @return A [Flow] emitting the matching [PromptSearchableDb] entry, or `null` if not found.
+     */
+    @Query(
+        """
+    SELECT p.id AS id, p.title AS title, p.description AS description, c.templateText AS templateText
+    FROM prompts p
+    INNER JOIN prompt_contents c ON p.id = c.promptId
+    WHERE p.id = :promptId
+    LIMIT 1
+    """
+    )
+    fun getSearchablePromptById(promptId: Long): Flow<PromptSearchableDb?>
+
+    /**
      * Updates an existing prompt header.
      * @param prompt The entity to update.
      */
@@ -72,6 +91,24 @@ interface PromptDao {
      */
     @Update
     suspend fun updateContent(content: PromptContentEntity)
+
+    /**
+     * Updates the template text for a specific prompt content record.
+     *
+     * @param promptId The unique identifier of the prompt content to update.
+     * @param templateText The new raw template text to be stored.
+     */
+    @Query("UPDATE prompt_contents SET templateText = :templateText WHERE promptId = :promptId")
+    suspend fun updatePromptContent(promptId: Long, templateText: String)
+
+    /**
+     * Inserts a new prompt content entry or replaces the existing one if a conflict occurs.
+     *
+     * @param promptId The unique identifier of the prompt content.
+     * @param templateText The raw template text to insert or replace.
+     */
+    @Query("INSERT OR REPLACE INTO prompt_contents (promptId, templateText) VALUES (:promptId, :templateText)")
+    suspend fun upsertPromptContent(promptId: Long, templateText: String)
 
     /**
      * Deletes a prompt header. Due to cascade setup, this also deletes its content.
