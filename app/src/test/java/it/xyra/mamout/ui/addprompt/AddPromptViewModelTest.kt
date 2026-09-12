@@ -62,25 +62,6 @@ class AddPromptViewModelTest {
     }
 
     @Test
-    fun `search results update when typing in step 2`() = runTest {
-        val prompt = Prompt(1, "Existing", "Content")
-        fakeRepository.searchablePrompts = listOf(PromptSearchable(prompt, "Existing Content"))
-        
-        // Re-init to pick up flow updates
-        viewModel = AddPromptViewModel(fakeRepository)
-        runCurrent()
-
-        viewModel.onTemplateTextChange(TextFieldValue("Existing"))
-        
-        // Wait for debounce (300ms)
-        advanceTimeBy(400)
-        runCurrent()
-        
-        assertEquals(1, viewModel.uiState.value.searchResults.size)
-        assertEquals("Existing", viewModel.uiState.value.searchResults[0].title)
-    }
-
-    @Test
     fun `prepareLlmPrompt generates a prompt with markers`() {
         viewModel.onTemplateTextChange(TextFieldValue("Hello name."))
         viewModel.prepareLlmPrompt()

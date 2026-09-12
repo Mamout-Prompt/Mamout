@@ -45,6 +45,7 @@ fun InteractivePromptViewer(
     inputValues: Map<String, String>,
     onValueChange: (id: String, newValue: String) -> Unit,
     targetedInputIndex: Int = -1,
+    enabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val parsedTemplate = remember(promptText) { TagPromptParser.parse(promptText) }
@@ -54,6 +55,7 @@ fun InteractivePromptViewer(
         inputValues = inputValues,
         onValueChange = onValueChange,
         targetedInputIndex = targetedInputIndex,
+        enabled = enabled,
         modifier = modifier
     )
 }
@@ -68,6 +70,7 @@ fun InteractivePromptViewer(
     inputValues: Map<String, String>,
     onValueChange: (id: String, newValue: String) -> Unit,
     targetedInputIndex: Int = -1,
+    enabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     var inputCounter = 0
@@ -131,6 +134,7 @@ fun InteractivePromptViewer(
                         field = segment,
                         currentValue = inputValues[segment.id] ?: segment.defaultValue,
                         onValueChange = { newValue -> onValueChange(segment.id, newValue) },
+                        enabled = enabled,
                         modifier = Modifier
                             .bringIntoViewRequester(bringIntoViewRequester)
                             .focusRequester(focusRequester)
@@ -149,6 +153,7 @@ private fun PromptInputField(
     field: PromptSegment.InputField,
     currentValue: String,
     onValueChange: (String) -> Unit,
+    enabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -158,7 +163,7 @@ private fun PromptInputField(
     ) {
         when (field.type) {
             InputType.OPTIONS -> {
-                PromptOptionsField(field, currentValue, onValueChange)
+                PromptOptionsField(field, currentValue, onValueChange, enabled)
             }
             InputType.TEXT -> {
                 OutlinedTextField(
@@ -166,7 +171,8 @@ private fun PromptInputField(
                     onValueChange = onValueChange,
                     label = { Text("Input Field") },
                     modifier = Modifier.fillMaxWidth(),
-                    minLines = 3
+                    minLines = 3,
+                    enabled = enabled
                 )
             }
             InputType.SMALL_TEXT -> {
@@ -176,7 +182,8 @@ private fun PromptInputField(
                     label = { Text("Short Input") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    enabled = enabled
                 )
             }
         }
@@ -191,7 +198,8 @@ private fun PromptInputField(
 private fun PromptOptionsField(
     field: PromptSegment.InputField,
     currentValue: String,
-    onValueChange: (String) -> Unit
+    onValueChange: (String) -> Unit,
+    enabled: Boolean = true
 ) {
     var showDialog by remember { mutableStateOf(false) }
 
@@ -201,7 +209,8 @@ private fun PromptOptionsField(
         shape = RoundedCornerShape(8.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
         colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Transparent),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+        enabled = enabled
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
