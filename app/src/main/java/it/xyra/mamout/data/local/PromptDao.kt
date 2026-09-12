@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
@@ -23,9 +24,10 @@ interface PromptDao {
     suspend fun insertPrompt(prompt: PromptEntity): Long
 
     /**
-     * Inserts a new prompt content entry.
+     * Inserts a new prompt content entry, replacing any existing content for the same
+     * [PromptContentEntity.promptId] (which is this table's primary key).
      * @param content The entity to insert.
-     * @return The row ID of the newly inserted content.
+     * @return The row ID of the inserted (or replaced) content row.
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertContent(content: PromptContentEntity): Long
@@ -109,6 +111,25 @@ interface PromptDao {
      */
     @Query("INSERT OR REPLACE INTO prompt_contents (promptId, templateText) VALUES (:promptId, :templateText)")
     suspend fun upsertPromptContent(promptId: Long, templateText: String)
+
+    /**
+     * Inserts a new prompt header together with its content in a single atomic transaction.
+     *
+     * Wrapping both inserts in [Transaction] prevents a "ghost" prompt: without it, a crash
+     * between the two inserts could leave a [PromptEntity] with no matching
+     * [PromptContentEntity], which would show up in [getPrompts] but silently disappear from
+     * [getSearchablePrompts] / [getSearchablePromptById] due to their INNER JOIN.
+     *
+     * @param prompt The prompt header to insert.
+     * @param templateText The raw template text for the new prompt's content.
+     * @return The row ID of the newly inserted prompt header.
+     */
+    @Transaction
+    suspend fun insertPromptWithContent(prompt: PromptEntity, templateText: String): Long {
+        val promptId = insertPrompt(prompt)
+        insertContent(PromptContentEntity(promptId = promptId, templateText = templateText))
+        return promptId
+    }
 
     /**
      * Deletes a prompt header. Due to cascade setup, this also deletes its content.

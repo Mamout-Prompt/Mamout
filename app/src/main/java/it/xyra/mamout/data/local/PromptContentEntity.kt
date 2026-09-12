@@ -2,18 +2,21 @@ package it.xyra.mamout.data.local
 
 import androidx.room.Entity
 import androidx.room.ForeignKey
-import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
  * Represents the actual content or template text associated with a specific prompt.
  *
- * This entity has a one-to-one relationship with [PromptEntity] and uses a foreign key
- * to ensure data integrity. If a parent [PromptEntity] is deleted, its corresponding
- * content will be removed automatically (CASCADE).
+ * This entity has a one-to-one relationship with [PromptEntity]: [promptId] is both
+ * the primary key of this table and a foreign key to [PromptEntity.id], so a given
+ * prompt can have at most one content row. This is also what makes `INSERT OR REPLACE`
+ * (see [PromptDao.upsertPromptContent]) behave as a true upsert: a conflict on the
+ * primary key replaces the existing row instead of creating a duplicate.
  *
- * @property idContent The unique identifier for this content entry.
- * @property promptId The ID of the parent [PromptEntity].
+ * If a parent [PromptEntity] is deleted, its corresponding content is removed
+ * automatically (CASCADE).
+ *
+ * @property promptId The ID of the parent [PromptEntity]; also this row's primary key.
  * @property templateText The actual text content or template of the prompt.
  */
 @Entity(
@@ -25,12 +28,10 @@ import androidx.room.PrimaryKey
             childColumns = ["promptId"],
             onDelete = ForeignKey.CASCADE
         )
-    ],
-    indices = [Index("promptId")]
+    ]
 )
 class PromptContentEntity(
-    @PrimaryKey(autoGenerate = true)
-    val idContent: Long = 0,
+    @PrimaryKey
     val promptId: Long,
     val templateText: String
 )

@@ -69,8 +69,8 @@ object PromptVisualizerEngine {
                 """(?<italic>(\*|_)(.+?)\8)|""" +
                 """(?<strike>(~~)(.+?)\11)|""" +
                 """(?<code>(`{1,3})(.+?)\13)|""" +
-                """(?<link>\[(.*?)\]\((.*?)\))|""" +
-                """(?<xmltag><(/?[a-zA-Z][a-zA-Z0-9]*)([^>]*)>)|""" +
+                """(?<link>\[(?<linkLabel>.*?)\]\((?<linkUrl>.*?)\))|""" +
+                """(?<xmltag><(?<tagName>/?[a-zA-Z][a-zA-Z0-9]*)([^>]*)>)|""" +
                 """(?<jsonkey>"[^"]+"(?=\s*:))|""" +
                 """(?<jsonstring>"[^"]*")"""
     )
@@ -177,11 +177,11 @@ object PromptVisualizerEngine {
                     builder.withStyle(codeStyle) { append(inner) }
                 }
                 match.groups["link"] != null -> {
-                    val label = match.groups[9]?.value ?: match.groups["link"]!!.value
+                    val label = match.groups["linkLabel"]?.value ?: match.groups["link"]!!.value
                     builder.withStyle(linkStyle) { append(label) }
                 }
                 match.groups["xmltag"] != null -> {
-                    val tagName = match.groups[13]?.value ?: ""
+                    val tagName = match.groups["tagName"]?.value ?: ""
                     val raw = match.groups["xmltag"]!!.value
                     if (TagPromptParser.isInputTag(tagName)) {
                         builder.append(raw)

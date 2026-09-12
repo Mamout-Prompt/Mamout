@@ -49,14 +49,14 @@ class PromptListViewModel(
         _isDeleteDialogVisible
     ) { searchable, query, selectedId, isDialogVisible ->
         val filtered = searchPromptsUseCase(searchable, query)
-        if (filtered.isEmpty()) {
-            PromptListUiState.Empty
-        } else {
-            PromptListUiState.Success(
+        when {
+            filtered.isNotEmpty() -> PromptListUiState.Success(
                 prompts = filtered,
                 selectedPromptId = selectedId,
                 isDeleteDialogVisible = isDialogVisible
             )
+            searchable.isEmpty() -> PromptListUiState.Empty
+            else -> PromptListUiState.NoResults(query)
         }
     }
         .catch { emit(PromptListUiState.Error(it.localizedMessage ?: "An unexpected error occurred")) }
