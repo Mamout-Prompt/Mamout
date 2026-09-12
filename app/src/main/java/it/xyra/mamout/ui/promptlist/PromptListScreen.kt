@@ -48,6 +48,13 @@ import it.xyra.mamout.ui.search.EmptySearchState
 import it.xyra.mamout.ui.search.InitialSearchState
 import it.xyra.mamout.ui.search.SearchResultsList
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.res.painterResource
+import it.xyra.mamout.R
+
 /**
  * Main screen composable displaying the list of saved prompts and search functionalities.
  *
@@ -215,11 +222,23 @@ fun PromptListScreen(
             ) {
                 when (val state = uiState) {
                     is PromptListUiState.Loading -> CircularProgressIndicator()
-                    is PromptListUiState.Empty -> Text(
-                        text = "No prompts saved",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    is PromptListUiState.Empty -> Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.empty),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(110.dp)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "No prompts saved",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     is PromptListUiState.Error -> Text(
                         text = state.message,
                         color = MaterialTheme.colorScheme.error,
