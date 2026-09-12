@@ -1,4 +1,4 @@
-package it.xyra.mamout.ui.components.promptviewer
+package it.xyra.mamout.ui.promptviewer
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
@@ -29,6 +29,7 @@ import it.xyra.mamout.domain.parser.ParsedPromptTemplate
 import it.xyra.mamout.domain.parser.PromptSegment
 import it.xyra.mamout.domain.parser.TagPromptParser
 import it.xyra.mamout.ui.theme.MamoutTheme
+import kotlin.math.abs
 
 /**
  * A shared stateless component that renders a prompt template with interactive input fields.
@@ -270,7 +271,7 @@ private fun WheelPickerPopup(
             val viewportCenter =
                 (layoutInfo.viewportStartOffset + layoutInfo.viewportEndOffset) / 2
             layoutInfo.visibleItemsInfo.minByOrNull { item ->
-                kotlin.math.abs((item.offset + item.size / 2) - viewportCenter)
+                abs((item.offset + item.size / 2) - viewportCenter)
             }?.index ?: initialIndex
         }
     }

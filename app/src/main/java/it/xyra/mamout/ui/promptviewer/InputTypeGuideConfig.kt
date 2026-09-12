@@ -1,4 +1,4 @@
-package it.xyra.mamout.ui.components.promptviewer
+package it.xyra.mamout.ui.promptviewer
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List

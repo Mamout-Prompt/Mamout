@@ -26,7 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import it.xyra.mamout.ui.components.promptviewer.AdvancedPromptViewer
+import it.xyra.mamout.ui.promptviewer.AdvancedPromptViewer
 import it.xyra.mamout.ui.promptdetail.components.PromptDetailTopBar
 
 /**
