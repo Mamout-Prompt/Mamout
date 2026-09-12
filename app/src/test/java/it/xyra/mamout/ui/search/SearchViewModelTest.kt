@@ -95,5 +95,9 @@ class SearchViewModelTest {
         }
 
         override fun getSearchablePrompts(): Flow<List<PromptSearchable>> = _searchablePrompts
+
+        override suspend fun savePrompt(title: String, description: String, templateText: String) {
+            // Not needed for SearchViewModel tests
+        }
     }
 }

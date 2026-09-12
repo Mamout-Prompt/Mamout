@@ -1,5 +1,6 @@
 package it.xyra.mamout.ui.components.promptviewer
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -62,6 +63,7 @@ fun AdvancedPromptViewer(
     onPreviousInput: () -> Unit,
     inputValues: Map<String, String>,
     onInputValueChange: (id: String, newValue: String) -> Unit,
+    enabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val matches = remember(templateTextValue.text) { VALID_INPUT_REGEX.findAll(templateTextValue.text).toList() }
@@ -149,34 +151,28 @@ fun AdvancedPromptViewer(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f, fill = false)
+                    .weight(1f)
             ) {
                 if (isRawMode) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .verticalScroll(rememberScrollState())
-                    ) {
-                        RawModeEditor(
-                            value = templateTextValue,
-                            onValueChange = onTemplateTextValueChange,
-                            inputMatches = matches,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .wrapContentHeight()
-                        )
-                    }
+                    RawModeEditor(
+                        value = templateTextValue,
+                        onValueChange = onTemplateTextValueChange,
+                        inputMatches = matches,
+                        enabled = enabled,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 } else {
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth()
+                            .fillMaxSize()
                             .verticalScroll(rememberScrollState())
                     ) {
                         InteractivePromptViewer(
                             promptText = templateTextValue.text,
                             inputValues = inputValues,
                             onValueChange = onInputValueChange,
-                            targetedInputIndex = targetedInputIndex
+                            targetedInputIndex = targetedInputIndex,
+                            enabled = enabled
                         )
                     }
                 }
@@ -212,6 +208,7 @@ private fun RawModeEditor(
     value: TextFieldValue,
     onValueChange: (TextFieldValue) -> Unit,
     inputMatches: List<MatchResult>,
+    enabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
@@ -226,8 +223,12 @@ private fun RawModeEditor(
         if (!value.selection.collapsed) {
             textLayoutResult?.let { layout ->
                 try {
-                    val startRect = layout.getBoundingBox(value.selection.start)
-                    val endRect = layout.getBoundingBox((value.selection.end - 1).coerceAtLeast(0))
+                    val layoutLength = layout.layoutInput.text.length
+                    val startIndex = value.selection.start.coerceIn(0, (layoutLength - 1).coerceAtLeast(0))
+                    val endIndex = (value.selection.end - 1).coerceIn(0, (layoutLength - 1).coerceAtLeast(0))
+
+                    val startRect = layout.getBoundingBox(startIndex)
+                    val endRect = layout.getBoundingBox(endIndex)
 
                     bringIntoViewRequester.bringIntoView(
                         rect = Rect(
@@ -251,107 +252,111 @@ private fun RawModeEditor(
         }
     }
 
-    Box(modifier = modifier) {
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = Modifier
-                .fillMaxSize()
-                .bringIntoViewRequester(bringIntoViewRequester),
-            textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
-            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-            onTextLayout = { textLayoutResult = it },
-            visualTransformation = visualTransformation,
-            decorationBox = { innerTextField ->
-                OutlinedTextFieldDefaults.DecorationBox(
-                    value = value.text,
-                    innerTextField = innerTextField,
-                    enabled = true,
-                    singleLine = false,
-                    visualTransformation = visualTransformation,
-                    interactionSource = remember { MutableInteractionSource() },
-                    placeholder = { Text("Use <INPUT type=\"...\">default</INPUT> for dynamic fields") },
-                    container = {
-                        OutlinedTextFieldDefaults.Container(
-                            enabled = true,
-                            isError = false,
-                            interactionSource = remember { MutableInteractionSource() },
-                            colors = OutlinedTextFieldDefaults.colors(),
-                            shape = OutlinedTextFieldDefaults.shape
-                        )
-                    }
+    // Shared insertion: used by chips below
+    fun insertInputType(type: InputType) {
+        val insertion = when (type) {
+            InputType.OPTIONS -> "<INPUT type=\"options\" values=\"true,false\">true</INPUT>"
+            else -> "<INPUT type=\"${type.key}\">default</INPUT>"
+        }
+        val beforeTag = value.text.take(value.selection.start).lowercase().lastIndexOf("<inp")
+        if (beforeTag != -1) {
+            val newText = value.text.take(beforeTag) + insertion + value.text.drop(value.selection.start)
+
+            val contentStart = beforeTag + insertion.indexOf(">") + 1
+            val contentEnd = beforeTag + insertion.lastIndexOf("</")
+
+            onValueChange(
+                value.copy(
+                    text = newText,
+                    selection = TextRange(contentStart, contentEnd)
                 )
-            }
-        )
+            )
+        }
+    }
 
-        if (showSuggestions) {
-            val cursorRect = textLayoutResult?.getCursorRect(value.selection.start) ?: Rect.Zero
-
-            Box(modifier = Modifier.padding(
-                start = 16.dp,
-                top = with(LocalDensity.current) {
-                    (cursorRect.bottom / density).dp + 8.dp
-                }
-            )) {
-                Surface(
-                    tonalElevation = 6.dp,
-                    shadowElevation = 8.dp,
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    modifier = Modifier.widthIn(min = 200.dp, max = 280.dp)
-                ) {
-                    Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                        InputType.entries.forEach { type ->
-                            val icon = when (type) {
-                                InputType.TEXT -> Icons.AutoMirrored.Filled.Notes
-                                InputType.SMALL_TEXT -> Icons.Default.Title
-                                InputType.OPTIONS -> Icons.AutoMirrored.Filled.List
-                            }
-
-                            DropdownMenuItem(
-                                text = {
-                                    Column {
-                                        Text(type.key, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
-                                        Text(
-                                            text = when (type) {
-                                                InputType.TEXT -> "Long text field"
-                                                InputType.SMALL_TEXT -> "Short single line"
-                                                InputType.OPTIONS -> "Dropdown selection"
-                                            },
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = icon,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                },
-                                onClick = {
-                                    val insertion = when (type) {
-                                        InputType.OPTIONS -> "<INPUT type=\"options\" values=\"true,false\">true</INPUT>"
-                                        else -> "<INPUT type=\"${type.key}\">default</INPUT>"
-                                    }
-                                    val beforeTag = value.text.take(value.selection.start).lowercase().lastIndexOf("<inp")
-                                    if (beforeTag != -1) {
-                                        val newText = value.text.take(beforeTag) + insertion + value.text.drop(value.selection.start)
-
-                                        val contentStart = beforeTag + insertion.indexOf(">") + 1
-                                        val contentEnd = beforeTag + insertion.lastIndexOf("</")
-
-                                        onValueChange(value.copy(
-                                            text = newText,
-                                            selection = TextRange(contentStart, contentEnd)
-                                        ))
-                                    }
-                                }
+    Column(modifier = modifier) {
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+        ) {
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp)
+                    .bringIntoViewRequester(bringIntoViewRequester),
+                enabled = enabled,
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                onTextLayout = { textLayoutResult = it },
+                visualTransformation = visualTransformation,
+                decorationBox = { innerTextField ->
+                    OutlinedTextFieldDefaults.DecorationBox(
+                        value = value.text,
+                        innerTextField = innerTextField,
+                        enabled = enabled,
+                        singleLine = false,
+                        visualTransformation = visualTransformation,
+                        interactionSource = remember { MutableInteractionSource() },
+                        placeholder = { Text("Use <INPUT type=\"...\">default</INPUT> for dynamic fields") },
+                        container = {
+                            OutlinedTextFieldDefaults.Container(
+                                enabled = enabled,
+                                isError = false,
+                                interactionSource = remember { MutableInteractionSource() },
+                                colors = OutlinedTextFieldDefaults.colors(),
+                                shape = OutlinedTextFieldDefaults.shape
                             )
                         }
+                    )
+                }
+            )
+        }
+
+        // Horizontal chip bar, anchored above the keyboard
+        AnimatedVisibility(visible = showSuggestions) {
+            Surface(
+                tonalElevation = 6.dp,
+                shadowElevation = 8.dp,
+                color = MaterialTheme.colorScheme.surface,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .imePadding()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    InputType.entries.forEach { type ->
+                        val icon = when (type) {
+                            InputType.TEXT -> Icons.AutoMirrored.Filled.Notes
+                            InputType.SMALL_TEXT -> Icons.Default.Title
+                            InputType.OPTIONS -> Icons.AutoMirrored.Filled.List
+                        }
+                        val label = when (type) {
+                            InputType.TEXT -> "Long text"
+                            InputType.SMALL_TEXT -> "Short text"
+                            InputType.OPTIONS -> "Options"
+                        }
+
+                        AssistChip(
+                            onClick = { insertInputType(type) },
+                            label = { Text(label, style = MaterialTheme.typography.labelLarge) },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 48.dp) // min touch target
+                        )
                     }
                 }
             }

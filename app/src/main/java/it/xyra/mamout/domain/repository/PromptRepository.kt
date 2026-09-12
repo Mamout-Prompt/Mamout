@@ -24,6 +24,15 @@ interface PromptRepository {
     fun getSearchablePrompts(): Flow<List<PromptSearchable>>
 
     /**
+     * Saves a new prompt with its header and content.
+     *
+     * @param title The title of the prompt.
+     * @param description The description of the prompt.
+     * @param templateText The raw template text.
+     */
+    suspend fun savePrompt(title: String, description: String, templateText: String)
+
+    /**
      * Deletes a prompt and its associated content by its ID.
      *
      * @param promptId The unique identifier of the prompt to delete.
