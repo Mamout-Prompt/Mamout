@@ -91,4 +91,4 @@ Contributions are welcome. Please open an issue to discuss significant changes b
 
 ## License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GNU AGPL-3.0 License — see the [LICENSE](LICENSE) file for details.
