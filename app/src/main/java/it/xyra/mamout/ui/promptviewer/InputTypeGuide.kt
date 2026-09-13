@@ -1,4 +1,4 @@
-package it.xyra.mamout.ui.components.promptviewer
+package it.xyra.mamout.ui.promptviewer
 
 import android.widget.Toast
 import androidx.compose.foundation.clickable

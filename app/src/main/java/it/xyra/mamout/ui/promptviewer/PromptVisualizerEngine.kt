@@ -1,4 +1,4 @@
-package it.xyra.mamout.ui.components.promptviewer
+package it.xyra.mamout.ui.promptviewer
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
@@ -11,6 +11,8 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.sp
 import it.xyra.mamout.domain.parser.TagPromptParser
+import kotlin.text.get
+import kotlin.text.iterator
 
 /**
  * Engine responsible for applying syntax highlighting and formatting to prompt text.
@@ -50,7 +52,8 @@ object PromptVisualizerEngine {
         background = Color(0xFFF6F8FA),
         color = Color(0xFF24292E)
     )
-    private val linkStyle = SpanStyle(color = Color(0xFF0366D6), textDecoration = TextDecoration.Underline)
+    private val linkStyle =
+        SpanStyle(color = Color(0xFF0366D6), textDecoration = TextDecoration.Underline)
     private val quoteStyle = SpanStyle(color = Color(0xFF6A737D), fontStyle = FontStyle.Italic)
     private val hrStyle = SpanStyle(color = Color.Gray.copy(alpha = 0.5f))
 
@@ -69,14 +72,14 @@ object PromptVisualizerEngine {
                 """(?<italic>(\*|_)(.+?)\8)|""" +
                 """(?<strike>(~~)(.+?)\11)|""" +
                 """(?<code>(`{1,3})(.+?)\13)|""" +
-                """(?<link>\[(.*?)\]\((.*?)\))|""" +
-                """(?<xmltag><(/?[a-zA-Z][a-zA-Z0-9]*)([^>]*)>)|""" +
+                """(?<link>\[(?<linkLabel>.*?)\]\((?<linkUrl>.*?)\))|""" +
+                """(?<xmltag><(?<tagName>/?[a-zA-Z][a-zA-Z0-9]*)([^>]*)>)|""" +
                 """(?<jsonkey>"[^"]+"(?=\s*:))|""" +
                 """(?<jsonstring>"[^"]*")"""
     )
 
     /**
-     * Transforms raw text into an [AnnotatedString] with Markdown formatting and
+     * Transforms raw text into an [androidx.compose.ui.text.AnnotatedString] with Markdown formatting and
      * syntax highlighting applied in a single left-to-right pass per line.
      *
      * @param forceJsonContext When true, every line in [text] is treated as JSON
@@ -85,23 +88,26 @@ object PromptVisualizerEngine {
      *   started in an earlier fragment of the same template (see class doc). Plain
      *   text and Markdown fragments should leave this false.
      */
-    fun highlight(text: String, forceJsonContext: Boolean = false): AnnotatedString = buildAnnotatedString {
-        val lines = text.split("\n")
-        var inCodeBlock = false
+    fun highlight(text: String, forceJsonContext: Boolean = false): AnnotatedString =
+        buildAnnotatedString {
+            val lines = text.split("\n")
+            var inCodeBlock = false
 
-        lines.forEachIndexed { index, line ->
-            when {
-                line.trim().startsWith("```") -> {
-                    inCodeBlock = !inCodeBlock
+            lines.forEachIndexed { index, line ->
+                when {
+                    line.trim().startsWith("```") -> {
+                        inCodeBlock = !inCodeBlock
+                    }
+
+                    inCodeBlock -> {
+                        withStyle(codeStyle) { append(line) }
+                    }
+
+                    else -> renderLine(this, line, forceJsonContext)
                 }
-                inCodeBlock -> {
-                    withStyle(codeStyle) { append(line) }
-                }
-                else -> renderLine(this, line, forceJsonContext)
+                if (index < lines.lastIndex) append("\n")
             }
-            if (index < lines.lastIndex) append("\n")
         }
-    }
 
     /**
      * Handles block-level Markdown for a single line (headers, quotes, hr, lists),
@@ -177,11 +183,11 @@ object PromptVisualizerEngine {
                     builder.withStyle(codeStyle) { append(inner) }
                 }
                 match.groups["link"] != null -> {
-                    val label = match.groups[9]?.value ?: match.groups["link"]!!.value
+                    val label = match.groups["linkLabel"]?.value ?: match.groups["link"]!!.value
                     builder.withStyle(linkStyle) { append(label) }
                 }
                 match.groups["xmltag"] != null -> {
-                    val tagName = match.groups[13]?.value ?: ""
+                    val tagName = match.groups["tagName"]?.value ?: ""
                     val raw = match.groups["xmltag"]!!.value
                     if (TagPromptParser.isInputTag(tagName)) {
                         builder.append(raw)

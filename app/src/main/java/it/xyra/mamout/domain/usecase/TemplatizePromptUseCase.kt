@@ -112,9 +112,59 @@ class TemplatizePromptUseCase {
         return metaPromptTemplate.replace("{{marked_text}}", markedText)
     }
 
+    /**
+     * Parses the LLM's JSON response and applies it to [originalPrompt].
+     *
+     * Chatbots asked to "return only JSON" often still wrap it in prose or a Markdown
+     * code fence (e.g. "Sure! ```json\n{...}\n``` Let me know if..."). Rather than
+     * failing on that extra text, [extractJsonObject] first isolates the outermost
+     * `{...}` object before deserializing, so a straight copy-paste from a chat UI
+     * still works.
+     *
+     * @throws SerializationException if no JSON object can be found or parsed.
+     */
     fun templatize(originalPrompt: String, llmJsonResponse: String): ParsedPromptTemplate {
-        val response = Json { ignoreUnknownKeys = true }.decodeFromString<MetaPromptResponse>(llmJsonResponse)
+        val jsonObject = extractJsonObject(llmJsonResponse)
+        val response = Json { ignoreUnknownKeys = true }.decodeFromString<MetaPromptResponse>(jsonObject)
         return processLlmResponse(originalPrompt, response.matches)
+    }
+
+    /**
+     * Extracts the outermost `{...}` JSON object from [rawResponse], tolerating any
+     * surrounding prose or Markdown code fences the LLM may have added despite being
+     * asked for JSON only.
+     *
+     * Finds the first `{` and its matching closing `}` by tracking brace depth (and
+     * skipping braces inside string literals, so `{"text": "e.g. {foo}"}` isn't cut
+     * short), then returns that span verbatim for the JSON parser to validate. If no
+     * balanced object is found, returns [rawResponse] unchanged so the subsequent
+     * `Json.decodeFromString` call fails with its own descriptive error instead of a
+     * silently different one from here.
+     */
+    private fun extractJsonObject(rawResponse: String): String {
+        val start = rawResponse.indexOf('{')
+        if (start == -1) return rawResponse
+
+        var depth = 0
+        var inString = false
+        var isEscaped = false
+
+        for (i in start until rawResponse.length) {
+            val c = rawResponse[i]
+            when {
+                isEscaped -> isEscaped = false
+                c == '\\' && inString -> isEscaped = true
+                c == '"' -> inString = !inString
+                inString -> Unit
+                c == '{' -> depth++
+                c == '}' -> {
+                    depth--
+                    if (depth == 0) return rawResponse.substring(start, i + 1)
+                }
+            }
+        }
+
+        return rawResponse
     }
 
     fun processLlmResponse(originalPrompt: String, matches: List<PromptMatch>): ParsedPromptTemplate {

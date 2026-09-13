@@ -26,9 +26,21 @@ sealed interface PromptListUiState {
     ) : PromptListUiState
 
     /**
-     * Indicates that the prompt list was loaded successfully but contains no items.
+     * Indicates that no prompts have ever been saved (the underlying list is empty
+     * regardless of the search query).
      */
     data object Empty : PromptListUiState
+
+    /**
+     * Indicates that prompts exist but none match the active search [query].
+     *
+     * Distinct from [Empty] so the UI can show "no results for this search" instead of
+     * the misleading "no prompts saved" message when the user has simply typed a query
+     * that doesn't match anything.
+     *
+     * @property query The search query that produced no matches.
+     */
+    data class NoResults(val query: String) : PromptListUiState
 
     /**
      * Indicates that an error occurred while loading the prompt list.

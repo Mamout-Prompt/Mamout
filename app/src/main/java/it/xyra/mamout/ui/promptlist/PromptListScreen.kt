@@ -48,7 +48,6 @@ import it.xyra.mamout.ui.search.EmptySearchState
 import it.xyra.mamout.ui.search.InitialSearchState
 import it.xyra.mamout.ui.search.SearchResultsList
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
@@ -187,7 +186,8 @@ fun PromptListScreen(
                                     )
                                 }
                             }
-                            is PromptListUiState.Empty -> {
+                            is PromptListUiState.Empty,
+                            is PromptListUiState.NoResults -> {
                                 EmptySearchState()
                             }
                             is PromptListUiState.Success -> {
@@ -239,6 +239,11 @@ fun PromptListScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                    is PromptListUiState.NoResults -> Text(
+                        text = "No results for \"${state.query}\"",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     is PromptListUiState.Error -> Text(
                         text = state.message,
                         color = MaterialTheme.colorScheme.error,

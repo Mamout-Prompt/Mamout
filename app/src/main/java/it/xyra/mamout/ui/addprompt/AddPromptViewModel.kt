@@ -50,23 +50,29 @@ class AddPromptViewModel(
     fun prepareLlmPrompt() {
         val currentText = _uiState.value.templateText.text
         if (currentText.isBlank()) return
-        
+
         val llmPrompt = templatizeUseCase.preparePromptForLlm(currentText)
         _uiState.update { it.copy(llmPrompt = llmPrompt) }
     }
 
     fun applyLlmResponse(jsonResponse: String) {
+        if (jsonResponse.isBlank()) {
+            _uiState.update { it.copy(error = "Paste the LLM's JSON response first") }
+            return
+        }
         try {
             val currentText = _uiState.value.templateText.text
             val parsed = templatizeUseCase.templatize(currentText, jsonResponse)
-            _uiState.update { 
+            _uiState.update {
                 it.copy(
                     templateText = TextFieldValue(parsed.rawTemplate),
                     step = 3 // Move to preview/refine step
                 )
             }
         } catch (e: Exception) {
-            _uiState.update { it.copy(error = "Invalid LLM Response: ${e.message}") }
+            _uiState.update {
+                it.copy(error = "Couldn't read that as JSON. Make sure you pasted the full response: ${e.message}")
+            }
         }
     }
 
@@ -81,13 +87,13 @@ class AddPromptViewModel(
     }
 
     fun nextStep() {
-        _uiState.update { 
+        _uiState.update {
             if (it.step < 3) it.copy(step = it.step + 1) else it
         }
     }
 
     fun previousStep() {
-        _uiState.update { 
+        _uiState.update {
             if (it.step > 1) it.copy(step = it.step - 1) else it
         }
     }
@@ -113,7 +119,7 @@ class AddPromptViewModel(
             }
         }
     }
-    
+
     fun clearError() {
         _uiState.update { it.copy(error = null) }
     }
