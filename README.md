@@ -4,7 +4,10 @@
 
 The core strength of Mamout is its custom template engine, which transforms static text into dynamic forms using a simple tag-based syntax — no need to manually rewrite prompts every time a detail changes.
 
-<!-- ![Mamout screenshot](docs/screenshot.png) -->
+<p style="text-align: center;">
+  <img src="docs/screenshot-home.png" width="978" alt="home"/>
+  <img src="docs/screenshot-viewer.png" width="978" alt="viewer"/>
+</p>
 
 ## Key Features
 
