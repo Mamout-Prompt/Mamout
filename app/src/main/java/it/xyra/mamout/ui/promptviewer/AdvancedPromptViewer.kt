@@ -3,6 +3,7 @@ package it.xyra.mamout.ui.promptviewer
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.relocation.BringIntoViewRequester
@@ -11,6 +12,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.Notes
@@ -117,7 +120,7 @@ fun AdvancedPromptViewer(
         tonalElevation = 2.dp,
         shadowElevation = 4.dp
     ) {
-        Column(modifier = Modifier.padding(8.dp)) {
+        Column(modifier = Modifier.padding(8.dp).imePadding()) {
             // Header with controls
             Row(
                 modifier = Modifier
@@ -210,6 +213,7 @@ private fun RawModeEditor(
 ) {
     var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
     val bringIntoViewRequester = remember { BringIntoViewRequester() }
+    val focusRequester = remember { FocusRequester() }
 
     val showSuggestions = remember(value.text, value.selection) {
         val beforeCursor = value.text.take(value.selection.start)
@@ -217,26 +221,30 @@ private fun RawModeEditor(
     }
 
     LaunchedEffect(value.selection, textLayoutResult) {
-        if (!value.selection.collapsed) {
-            textLayoutResult?.let { layout ->
-                try {
-                    val layoutLength = layout.layoutInput.text.length
-                    val startIndex = value.selection.start.coerceIn(0, (layoutLength - 1).coerceAtLeast(0))
-                    val endIndex = (value.selection.end - 1).coerceIn(0, (layoutLength - 1).coerceAtLeast(0))
+        textLayoutResult?.let { layout ->
+            try {
+                val layoutLength = layout.layoutInput.text.length
+                if (layoutLength > 0) {
+                    val startIndex = value.selection.start.coerceIn(0, layoutLength - 1)
+                    val endIndex = (value.selection.end - 1).coerceIn(0, layoutLength - 1)
 
                     val startRect = layout.getBoundingBox(startIndex)
                     val endRect = layout.getBoundingBox(endIndex)
 
+                    val isCollapsed = value.selection.collapsed
+                    val topOffset = if (isCollapsed) -150f else -500f
+                    val bottomOffset = if (isCollapsed) 150f else 500f
+
                     bringIntoViewRequester.bringIntoView(
                         rect = Rect(
                             left = startRect.left,
-                            top = startRect.top - 500f,
+                            top = startRect.top + topOffset,
                             right = endRect.right,
-                            bottom = endRect.bottom + 500f
+                            bottom = endRect.bottom + bottomOffset
                         )
                     )
-                } catch (_: Exception) { }
-            }
+                }
+            } catch (_: Exception) { }
         }
     }
 
@@ -276,13 +284,21 @@ private fun RawModeEditor(
             modifier = Modifier
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) {
+                    focusRequester.requestFocus()
+                }
         ) {
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
                 modifier = Modifier
-                    .fillMaxSize()
+                    .fillMaxWidth()
+                    .heightIn(min = 250.dp)
                     .padding(8.dp)
+                    .focusRequester(focusRequester)
                     .bringIntoViewRequester(bringIntoViewRequester),
                 enabled = enabled,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
@@ -320,7 +336,6 @@ private fun RawModeEditor(
                 color = MaterialTheme.colorScheme.surface,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .imePadding()
             ) {
                 Row(
                     modifier = Modifier

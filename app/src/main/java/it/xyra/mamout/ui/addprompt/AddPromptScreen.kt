@@ -1,7 +1,20 @@
 package it.xyra.mamout.ui.addprompt
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -87,6 +100,7 @@ fun AddPromptContent(
     }
 
     Scaffold(
+        contentWindowInsets = WindowInsets.safeDrawing,
         topBar = {
             TopAppBar(
                 title = { Text("Add Prompt - Step ${uiState.step} of 3") },
@@ -135,6 +149,7 @@ fun AddPromptContent(
         Box(
             modifier = Modifier
                 .padding(innerPadding)
+                .consumeWindowInsets(innerPadding)
                 .fillMaxSize()
         ) {
             AnimatedContent(
@@ -240,6 +255,7 @@ private fun AiTemplatizeStep(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .imePadding()
             .padding(16.dp)
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -258,8 +274,7 @@ private fun AiTemplatizeStep(
             onValueChange = onTemplateTextChange,
             label = { Text("Raw Prompt") },
             modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = 200.dp),
+                .fillMaxWidth(),
             minLines = 6,
             placeholder = { Text("e.g. Write an email to [name] about [topic]...") }
         )
@@ -289,8 +304,7 @@ private fun AiTemplatizeStep(
                 value = llmResponse,
                 onValueChange = { llmResponse = it },
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 160.dp),
+                    .fillMaxWidth(),
                 minLines = 5,
                 placeholder = { Text("Paste JSON here...") }
             )
