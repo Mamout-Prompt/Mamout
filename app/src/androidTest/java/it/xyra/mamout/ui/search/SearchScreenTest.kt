@@ -1,5 +1,8 @@
 package it.xyra.mamout.ui.search
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -14,6 +17,7 @@ import org.junit.Test
  * This test runs in isolation on a device or emulator, verifying that the
  * UI components behave correctly when provided with data.
  */
+@OptIn(ExperimentalSharedTransitionApi::class)
 class SearchScreenTest {
 
     @get:Rule
@@ -28,13 +32,20 @@ class SearchScreenTest {
 
         // When the screen is rendered in the test environment
         composeTestRule.setContent {
-            SearchContent(
-                query = "Test",
-                results = mockResults,
-                onQueryChange = {},
-                onBackClick = {},
-                onPromptClick = {}
-            )
+            SharedTransitionLayout {
+                AnimatedVisibility(visible = true) {
+                    SearchContent(
+                        uiState = SearchUiState(query = "Test", results = mockResults),
+                        sharedTransitionScope = this@SharedTransitionLayout,
+                        animatedVisibilityScope = this@AnimatedVisibility,
+                        onQueryChange = {},
+                        onBackClick = {},
+                        onPromptClick = {},
+                        onPromptLongClick = {},
+                        onDeleteClick = {}
+                    )
+                }
+            }
         }
 
         // Then the title of the mock prompt should be visible
@@ -46,13 +57,20 @@ class SearchScreenTest {
     fun searchScreen_displaysEmptyState_whenNoResultsFound() {
         // When the screen is rendered with an empty result list and a query
         composeTestRule.setContent {
-            SearchContent(
-                query = "Unknown",
-                results = emptyList(),
-                onQueryChange = {},
-                onBackClick = {},
-                onPromptClick = {}
-            )
+            SharedTransitionLayout {
+                AnimatedVisibility(visible = true) {
+                    SearchContent(
+                        uiState = SearchUiState(query = "Unknown", results = emptyList()),
+                        sharedTransitionScope = this@SharedTransitionLayout,
+                        animatedVisibilityScope = this@AnimatedVisibility,
+                        onQueryChange = {},
+                        onBackClick = {},
+                        onPromptClick = {},
+                        onPromptLongClick = {},
+                        onDeleteClick = {}
+                    )
+                }
+            }
         }
 
         // Then the empty state message should be visible

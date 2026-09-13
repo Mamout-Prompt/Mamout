@@ -9,6 +9,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -95,6 +96,21 @@ class SearchViewModelTest {
         }
 
         override fun getSearchablePrompts(): Flow<List<PromptSearchable>> = _searchablePrompts
+
+        override fun getPromptById(promptId: Long): Flow<PromptSearchable?> = flowOf(null)
+
+        override suspend fun updatePrompt(
+            promptId: Long,
+            title: String,
+            description: String,
+            templateText: String
+        ) {
+            // Not needed for SearchViewModel tests
+        }
+
+        override suspend fun deletePrompt(promptId: Long) {
+            // Not needed for SearchViewModel tests
+        }
 
         override suspend fun savePrompt(title: String, description: String, templateText: String) {
             // Not needed for SearchViewModel tests

@@ -79,6 +79,21 @@ class AddPromptViewModelTest {
         override fun getPrompts(): Flow<List<Prompt>> = flowOf(emptyList())
         override fun getSearchablePrompts(): Flow<List<PromptSearchable>> = flowOf(searchablePrompts)
 
+        override fun getPromptById(promptId: Long): Flow<PromptSearchable?> = flowOf(null)
+
+        override suspend fun updatePrompt(
+            promptId: Long,
+            title: String,
+            description: String,
+            templateText: String
+        ) {
+            // No-op for now
+        }
+
+        override suspend fun deletePrompt(promptId: Long) {
+            // No-op for now
+        }
+
         override suspend fun savePrompt(title: String, description: String, templateText: String) {
             savedTitle = title
             savedText = templateText

@@ -1,5 +1,8 @@
 package it.xyra.mamout.ui.search
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -22,6 +25,7 @@ import org.junit.runner.RunWith
 /**
  * Integration test verifying the full path from Room Database to Search UI.
  */
+@OptIn(ExperimentalSharedTransitionApi::class)
 @RunWith(AndroidJUnit4::class)
 class SearchIntegrationTest {
 
@@ -67,11 +71,17 @@ class SearchIntegrationTest {
 
         // 4. Set up the UI with the real ViewModel
         composeTestRule.setContent {
-            SearchScreen(
-                viewModel = viewModel,
-                onBackClick = {},
-                onPromptClick = {}
-            )
+            SharedTransitionLayout {
+                AnimatedVisibility(visible = true) {
+                    SearchScreen(
+                        viewModel = viewModel,
+                        sharedTransitionScope = this@SharedTransitionLayout,
+                        animatedVisibilityScope = this@AnimatedVisibility,
+                        onBackClick = {},
+                        onPromptClick = {}
+                    )
+                }
+            }
         }
 
         // 5. Simulate user typing a query that should match the DB entry
@@ -92,11 +102,17 @@ class SearchIntegrationTest {
         }
 
         composeTestRule.setContent {
-            SearchScreen(
-                viewModel = viewModel,
-                onBackClick = {},
-                onPromptClick = {}
-            )
+            SharedTransitionLayout {
+                AnimatedVisibility(visible = true) {
+                    SearchScreen(
+                        viewModel = viewModel,
+                        sharedTransitionScope = this@SharedTransitionLayout,
+                        animatedVisibilityScope = this@AnimatedVisibility,
+                        onBackClick = {},
+                        onPromptClick = {}
+                    )
+                }
+            }
         }
 
         // Search for something non-existent
