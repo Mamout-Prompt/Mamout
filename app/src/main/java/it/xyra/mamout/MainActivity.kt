@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.createSavedStateHandle
@@ -80,9 +81,19 @@ class MainActivity : ComponentActivity() {
                                     sharedTransitionScope = this@SharedTransitionLayout,
                                     animatedVisibilityScope = this@composable,
                                     onPromptClick = { promptId ->
-                                        navController.navigate("prompt_detail/$promptId")
+                                        if (navController.currentBackStackEntry?.lifecycle?.currentState == Lifecycle.State.RESUMED) {
+                                            navController.navigate("prompt_detail/$promptId") {
+                                                launchSingleTop = true
+                                            }
+                                        }
                                     },
-                                    onAddPromptClick = { navController.navigate("add_prompt") },
+                                    onAddPromptClick = {
+                                        if (navController.currentBackStackEntry?.lifecycle?.currentState == Lifecycle.State.RESUMED) {
+                                            navController.navigate("add_prompt") {
+                                                launchSingleTop = true
+                                            }
+                                        }
+                                    },
                                     modifier = Modifier.fillMaxSize()
                                 )
                             }
@@ -105,7 +116,11 @@ class MainActivity : ComponentActivity() {
 
                                 AddPromptScreen(
                                     viewModel = addPromptViewModel,
-                                    onBack = { navController.popBackStack() },
+                                    onBack = {
+                                        if (navController.currentBackStackEntry?.lifecycle?.currentState == Lifecycle.State.RESUMED) {
+                                            navController.popBackStack()
+                                        }
+                                    },
                                     modifier = Modifier.fillMaxSize()
                                 )
                             }
@@ -138,7 +153,11 @@ class MainActivity : ComponentActivity() {
                                     viewModel = detailViewModel,
                                     sharedTransitionScope = this@SharedTransitionLayout,
                                     animatedVisibilityScope = this@composable,
-                                    onBackClick = { navController.popBackStack() }
+                                    onBackClick = {
+                                        if (navController.currentBackStackEntry?.lifecycle?.currentState == Lifecycle.State.RESUMED) {
+                                            navController.popBackStack()
+                                        }
+                                    }
                                 )
                             }
                         }

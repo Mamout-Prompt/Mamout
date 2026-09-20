@@ -18,6 +18,10 @@ local.properties
 # Log Files
 *.log
 
+# Build outputs
+/app/debug/
+/app/release/
+
 # NDK
 obj/
 .externalNativeBuild/
