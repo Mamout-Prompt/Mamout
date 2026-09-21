@@ -54,12 +54,24 @@ interface PromptDao {
      */
     @Query(
         """
-        SELECT p.id AS id, p.title AS title, p.description AS description, c.templateText AS templateText
+        SELECT p.id AS id, p.title AS title, p.description AS description, c.templateText AS templateText, p.lastModified AS lastModified
         FROM prompts p
         INNER JOIN prompt_contents c ON p.id = c.promptId
         """
     )
     fun getSearchablePrompts(): Flow<List<PromptSearchableDb>>
+
+    /**
+     * Retrieves all searchable prompts as a direct list (non-flow).
+     */
+    @Query(
+        """
+        SELECT p.id AS id, p.title AS title, p.description AS description, c.templateText AS templateText, p.lastModified AS lastModified
+        FROM prompts p
+        INNER JOIN prompt_contents c ON p.id = c.promptId
+        """
+    )
+    suspend fun getSearchablePromptsSync(): List<PromptSearchableDb>
 
     /**
      * Retrieves a single searchable prompt database projection by its unique identifier.
@@ -71,7 +83,7 @@ interface PromptDao {
      */
     @Query(
         """
-    SELECT p.id AS id, p.title AS title, p.description AS description, c.templateText AS templateText
+    SELECT p.id AS id, p.title AS title, p.description AS description, c.templateText AS templateText, p.lastModified AS lastModified
     FROM prompts p
     INNER JOIN prompt_contents c ON p.id = c.promptId
     WHERE p.id = :promptId
@@ -79,6 +91,20 @@ interface PromptDao {
     """
     )
     fun getSearchablePromptById(promptId: Long): Flow<PromptSearchableDb?>
+
+    /**
+     * Retrieves a searchable prompt by its title and description.
+     */
+    @Query(
+        """
+    SELECT p.id AS id, p.title AS title, p.description AS description, c.templateText AS templateText, p.lastModified AS lastModified
+    FROM prompts p
+    INNER JOIN prompt_contents c ON p.id = c.promptId
+    WHERE p.title = :title AND p.description = :description
+    LIMIT 1
+    """
+    )
+    suspend fun getSearchablePromptByTitleAndDescription(title: String, description: String): PromptSearchableDb?
 
     /**
      * Updates an existing prompt header.
@@ -94,14 +120,23 @@ interface PromptDao {
     @Update
     suspend fun updateContent(content: PromptContentEntity)
 
+    @Query("UPDATE prompt_contents SET templateText = :templateText WHERE promptId = :promptId")
+    suspend fun updatePromptContent(promptId: Long, templateText: String)
+
     /**
-     * Updates the template text for a specific prompt content record.
+     * Updates the template text for a specific prompt content record and updates the last modified timestamp.
      *
      * @param promptId The unique identifier of the prompt content to update.
      * @param templateText The new raw template text to be stored.
      */
-    @Query("UPDATE prompt_contents SET templateText = :templateText WHERE promptId = :promptId")
-    suspend fun updatePromptContent(promptId: Long, templateText: String)
+    @Transaction
+    suspend fun updatePromptContentWithTimestamp(promptId: Long, templateText: String, lastModified: Long = System.currentTimeMillis()) {
+        updatePromptContent(promptId, templateText)
+        updateLastModified(promptId, lastModified)
+    }
+
+    @Query("UPDATE prompts SET lastModified = :lastModified WHERE id = :promptId")
+    suspend fun updateLastModified(promptId: Long, lastModified: Long)
 
     /**
      * Inserts a new prompt content entry or replaces the existing one if a conflict occurs.
@@ -132,9 +167,22 @@ interface PromptDao {
     }
 
     /**
-     * Deletes a prompt header. Due to cascade setup, this also deletes its content.
-     * @param prompt The entity to delete.
+     * Updates the prompt header details and content in a single atomic transaction.
      */
+    @Transaction
+    suspend fun updatePromptWithContent(
+        promptId: Long,
+        title: String,
+        description: String,
+        templateText: String,
+        lastModified: Long = System.currentTimeMillis()
+    ) {
+        updatePromptHeader(promptId, title, description, lastModified)
+        upsertPromptContent(promptId, templateText)
+    }
+
+    @Query("UPDATE prompts SET title = :title, description = :description, lastModified = :lastModified WHERE id = :promptId")
+    suspend fun updatePromptHeader(promptId: Long, title: String, description: String, lastModified: Long)
     @Delete
     suspend fun deletePrompt(prompt: PromptEntity)
 

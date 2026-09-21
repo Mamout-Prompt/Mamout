@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import it.xyra.mamout.domain.repository.PromptRepository
 import it.xyra.mamout.domain.usecase.SearchPromptsUseCase
+import it.xyra.mamout.sync.SyncManager
+import it.xyra.mamout.sync.SyncServer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -35,6 +37,25 @@ class PromptListViewModel(
 
     private val _selectedPromptId = MutableStateFlow<Long?>(null)
     private val _isDeleteDialogVisible = MutableStateFlow(false)
+
+    private val _syncState = MutableStateFlow<SyncServer.ServerState>(SyncServer.ServerState.Stopped)
+    val syncState: StateFlow<SyncServer.ServerState> = _syncState.asStateFlow()
+
+    private val _isClientConnected = MutableStateFlow(false)
+    val isClientConnected: StateFlow<Boolean> = _isClientConnected.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            SyncManager.serverState.collect {
+                _syncState.value = it
+            }
+        }
+        viewModelScope.launch {
+            SyncManager.sessionCount.collect { count ->
+                _isClientConnected.value = count > 0
+            }
+        }
+    }
 
     /**
      * StateFlow exposing the current UI state of the prompt list screen.
@@ -130,6 +151,14 @@ class PromptListViewModel(
             _isDeleteDialogVisible.value = false
             repository.deletePrompt(idToDelete)
             _selectedPromptId.value = null
+        }
+    }
+
+    fun toggleSync() {
+        if (_syncState.value is SyncServer.ServerState.Running) {
+            SyncManager.stop()
+        } else {
+            SyncManager.start()
         }
     }
 }

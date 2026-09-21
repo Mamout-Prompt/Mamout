@@ -27,6 +27,7 @@ import androidx.navigation.navArgument
 import it.xyra.mamout.data.local.AppDatabase
 import it.xyra.mamout.data.repository.PromptRepositoryImpl
 import it.xyra.mamout.domain.usecase.SearchPromptsUseCase
+import it.xyra.mamout.sync.SyncManager
 import it.xyra.mamout.ui.addprompt.AddPromptScreen
 import it.xyra.mamout.ui.addprompt.AddPromptViewModel
 import it.xyra.mamout.ui.promptdetail.PromptDetailScreen
@@ -45,6 +46,8 @@ class MainActivity : ComponentActivity() {
         val database = AppDatabase.getInstance(applicationContext)
         val repository = PromptRepositoryImpl(database.promptDao())
         val searchPromptsUseCase = SearchPromptsUseCase()
+
+        SyncManager.initialize(repository)
 
         setContent {
             MamoutTheme {

@@ -6,6 +6,7 @@ import it.xyra.mamout.data.local.PromptSearchableDb
 import it.xyra.mamout.domain.model.Prompt
 import it.xyra.mamout.domain.model.PromptSearchable
 import it.xyra.mamout.domain.repository.PromptRepository
+import it.xyra.mamout.sync.SyncManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -66,30 +67,55 @@ class PromptRepositoryImpl(
         description: String,
         templateText: String
     ) {
-        promptDao.updatePrompt(
-            PromptEntity(
-                id = promptId,
-                title = title,
-                description = description
-            )
-        )
-        promptDao.updatePromptContent(
+        promptDao.updatePromptWithContent(
             promptId = promptId,
+            title = title,
+            description = description,
             templateText = templateText
         )
+        SyncManager.syncAll()
     }
 
-    /**
-     * Saves a new prompt with its header and content.
-     *
-     * Both inserts happen atomically (see [PromptDao.insertPromptWithContent]) so a crash
-     * mid-save can never leave a prompt header without its content.
-     */
     override suspend fun savePrompt(title: String, description: String, templateText: String) {
         promptDao.insertPromptWithContent(
             prompt = PromptEntity(title = title, description = description),
             templateText = templateText
         )
+        SyncManager.syncAll()
+    }
+
+    override suspend fun getAllPromptsSync(): List<PromptSearchable> {
+        return promptDao.getSearchablePromptsSync().map { it.toDomainModel() }
+    }
+
+    override suspend fun syncPrompts(prompts: List<PromptSearchable>) {
+        prompts.forEach { incoming ->
+            val existing = promptDao.getSearchablePromptByTitleAndDescription(
+                title = incoming.prompt.title,
+                description = incoming.prompt.description
+            )
+            
+            if (existing != null) {
+                if (incoming.prompt.lastModified > existing.lastModified) {
+                    promptDao.updatePromptWithContent(
+                        promptId = existing.id,
+                        title = incoming.prompt.title,
+                        description = incoming.prompt.description,
+                        templateText = incoming.templateText,
+                        lastModified = incoming.prompt.lastModified
+                    )
+                }
+            } else {
+                promptDao.insertPromptWithContent(
+                    prompt = PromptEntity(
+                        title = incoming.prompt.title,
+                        description = incoming.prompt.description,
+                        lastModified = incoming.prompt.lastModified
+                    ),
+                    templateText = incoming.templateText
+                )
+            }
+        }
     }
 
     /**
@@ -108,7 +134,8 @@ class PromptRepositoryImpl(
         return Prompt(
             id = id,
             title = title,
-            description = description
+            description = description,
+            lastModified = lastModified
         )
     }
 
@@ -120,7 +147,8 @@ class PromptRepositoryImpl(
             prompt = Prompt(
                 id = id,
                 title = title,
-                description = description
+                description = description,
+                lastModified = lastModified
             ),
             templateText = templateText
         )

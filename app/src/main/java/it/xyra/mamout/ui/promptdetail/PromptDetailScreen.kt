@@ -13,8 +13,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -28,6 +33,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import it.xyra.mamout.ui.promptviewer.AdvancedPromptViewer
 import it.xyra.mamout.ui.promptdetail.components.PromptDetailTopBar
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material3.Icon
 
 /**
  * Composable screen for displaying and interacting with prompt details.
@@ -88,6 +97,7 @@ fun PromptDetailScreen(
             topBar = {
                 PromptDetailTopBar(
                     title = uiState.title,
+                    isSyncing = uiState.isSyncing,
                     onBackClick = onBackClick,
                     onEditHeaderClick = { viewModel.onToggleEditHeader(true) },
                     onSaveClick = {
@@ -99,6 +109,9 @@ fun PromptDetailScreen(
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         clipboard.setPrimaryClip(ClipData.newPlainText("Compiled Prompt", compiled))
                         Toast.makeText(context, "Copied to clipboard!", Toast.LENGTH_SHORT).show()
+                    },
+                    onSyncClick = {
+                        viewModel.toggleSync()
                     }
                 )
             },
@@ -114,27 +127,73 @@ fun PromptDetailScreen(
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                if (uiState.isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                } else if (uiState.errorMessage != null) {
-                    Text(
-                        text = uiState.errorMessage ?: "",
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                } else {
-                    AdvancedPromptViewer(
-                        templateTextValue = uiState.templateTextValue,
-                        onTemplateTextValueChange = viewModel::onTemplateTextValueChange,
-                        isRawMode = uiState.isRawMode,
-                        onToggleRawMode = viewModel::onToggleRawMode,
-                        onNextInput = { viewModel.onNavigateInput(1) },
-                        onPreviousInput = { viewModel.onNavigateInput(-1) },
-                        inputValues = uiState.inputValues,
-                        onInputValueChange = viewModel::onInputValueChange,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp)
-                    )
+                Column {
+                    if (uiState.isSyncing && uiState.syncIp != null) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .padding(16.dp)
+                                    .fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (uiState.isClientConnected) Icons.Default.CheckCircle else Icons.Default.Sync,
+                                    contentDescription = null,
+                                    tint = if (uiState.isClientConnected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSecondaryContainer,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Column {
+                                    Text(
+                                        text = if (uiState.isClientConnected) "Synchronized" else "Waiting for synchronization",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                    if (!uiState.isClientConnected) {
+                                        Text(
+                                            text = "${uiState.syncIp}:${uiState.syncPort}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (uiState.isLoading) {
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                        }
+                    } else if (uiState.errorMessage != null) {
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            Text(
+                                text = uiState.errorMessage ?: "",
+                                modifier = Modifier.align(Alignment.Center)
+                            )
+                        }
+                    } else {
+                        AdvancedPromptViewer(
+                            templateTextValue = uiState.templateTextValue,
+                            onTemplateTextValueChange = viewModel::onTemplateTextValueChange,
+                            isRawMode = uiState.isRawMode,
+                            onToggleRawMode = viewModel::onToggleRawMode,
+                            onNextInput = { viewModel.onNavigateInput(1) },
+                            onPreviousInput = { viewModel.onNavigateInput(-1) },
+                            inputValues = uiState.inputValues,
+                            onInputValueChange = viewModel::onInputValueChange,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp)
+                        )
+                    }
                 }
             }
         }

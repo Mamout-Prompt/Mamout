@@ -48,11 +48,19 @@ import it.xyra.mamout.ui.search.EmptySearchState
 import it.xyra.mamout.ui.search.InitialSearchState
 import it.xyra.mamout.ui.search.SearchResultsList
 
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.SyncDisabled
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.ui.res.painterResource
 import it.xyra.mamout.R
+import it.xyra.mamout.sync.SyncServer
 
 /**
  * Main screen composable displaying the list of saved prompts and search functionalities.
@@ -79,6 +87,8 @@ fun PromptListScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val syncState by viewModel.syncState.collectAsStateWithLifecycle()
+    val isClientConnected by viewModel.isClientConnected.collectAsStateWithLifecycle()
     var isSearchActive by rememberSaveable { mutableStateOf(false) }
 
     val animatedHorizontalPadding by animateDpAsState(
@@ -116,96 +126,156 @@ fun PromptListScreen(
                     .fillMaxWidth()
                     .padding(top = statusBarTopPadding)
             ) {
-                SearchBar(
-                    inputField = {
-                        SearchBarDefaults.InputField(
-                            query = searchQuery,
-                            onQueryChange = viewModel::onSearchQueryChange,
-                            onSearch = {},
-                            expanded = isSearchActive,
-                            onExpandedChange = { isSearchActive = it },
-                            placeholder = { Text("Search prompts") },
-                            leadingIcon = {
-                                if (isSearchActive) {
-                                    IconButton(onClick = { isSearchActive = false }) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    SearchBar(
+                        inputField = {
+                            SearchBarDefaults.InputField(
+                                query = searchQuery,
+                                onQueryChange = viewModel::onSearchQueryChange,
+                                onSearch = {},
+                                expanded = isSearchActive,
+                                onExpandedChange = { isSearchActive = it },
+                                placeholder = { Text("Search prompts") },
+                                leadingIcon = {
+                                    if (isSearchActive) {
+                                        IconButton(onClick = { isSearchActive = false }) {
+                                            Icon(
+                                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                                contentDescription = "Back"
+                                            )
+                                        }
+                                    } else {
                                         Icon(
-                                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                            contentDescription = "Back"
+                                            imageVector = Icons.Default.Search,
+                                            contentDescription = "Search prompts"
                                         )
                                     }
-                                } else {
-                                    Icon(
-                                        imageVector = Icons.Default.Search,
-                                        contentDescription = "Search prompts"
+                                },
+                                trailingIcon = {
+                                    if (isSearchActive && searchQuery.isNotEmpty()) {
+                                        IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Clear search"
+                                            )
+                                        }
+                                    }
+                                }
+                            )
+                        },
+                        expanded = isSearchActive,
+                        onExpandedChange = { isSearchActive = it },
+                        windowInsets = WindowInsets(0.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(
+                                start = animatedHorizontalPadding,
+                                end = if (isSearchActive) 0.dp else 8.dp,
+                                bottom = 8.dp
+                            )
+                    ) {
+                        // Search results... (I'll copy the existing logic here)
+                        if (searchQuery.isEmpty()) {
+                            InitialSearchState()
+                        } else {
+                            when (val state = uiState) {
+                                is PromptListUiState.Loading -> {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator()
+                                    }
+                                }
+                                is PromptListUiState.Error -> {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = state.message,
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                }
+                                is PromptListUiState.Empty,
+                                is PromptListUiState.NoResults -> {
+                                    EmptySearchState()
+                                }
+                                is PromptListUiState.Success -> {
+                                    SearchResultsList(
+                                        results = state.prompts,
+                                        selectedPromptId = state.selectedPromptId,
+                                        sharedTransitionScope = sharedTransitionScope,
+                                        animatedVisibilityScope = animatedVisibilityScope,
+                                        onPromptClick = { prompt ->
+                                            if (state.selectedPromptId != null) {
+                                                viewModel.onPromptClick(prompt.id)
+                                            } else {
+                                                isSearchActive = false
+                                                onPromptClick(prompt.id)
+                                            }
+                                        },
+                                        onPromptLongClick = viewModel::onPromptLongClick,
+                                        onDeleteClick = { promptId -> viewModel.onDeleteRequested(promptId) }
                                     )
                                 }
-                            },
-                            trailingIcon = {
-                                if (isSearchActive && searchQuery.isNotEmpty()) {
-                                    IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
-                                        Icon(
-                                            imageVector = Icons.Default.Close,
-                                            contentDescription = "Clear search"
-                                        )
-                                    }
-                                }
                             }
-                        )
-                    },
-                    expanded = isSearchActive,
-                    onExpandedChange = { isSearchActive = it },
-                    windowInsets = WindowInsets(0.dp),
+                        }
+                    }
+
+                    if (!isSearchActive) {
+                        IconButton(
+                            onClick = viewModel::toggleSync,
+                            modifier = Modifier.padding(end = 8.dp, bottom = 8.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (syncState is SyncServer.ServerState.Running) Icons.Default.SyncDisabled else Icons.Default.Sync,
+                                contentDescription = "Synchronize",
+                                tint = if (syncState is SyncServer.ServerState.Running) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (syncState is SyncServer.ServerState.Running) {
+                val state = syncState as SyncServer.ServerState.Running
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(
-                            start = animatedHorizontalPadding,
-                            end = animatedHorizontalPadding,
-                            bottom = 8.dp
-                        )
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    )
                 ) {
-                    if (searchQuery.isEmpty()) {
-                        InitialSearchState()
-                    } else {
-                        when (val state = uiState) {
-                            is PromptListUiState.Loading -> {
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    CircularProgressIndicator()
-                                }
-                            }
-                            is PromptListUiState.Error -> {
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = state.message,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                }
-                            }
-                            is PromptListUiState.Empty,
-                            is PromptListUiState.NoResults -> {
-                                EmptySearchState()
-                            }
-                            is PromptListUiState.Success -> {
-                                SearchResultsList(
-                                    results = state.prompts,
-                                    selectedPromptId = state.selectedPromptId,
-                                    sharedTransitionScope = sharedTransitionScope,
-                                    animatedVisibilityScope = animatedVisibilityScope,
-                                    onPromptClick = { prompt ->
-                                        if (state.selectedPromptId != null) {
-                                            viewModel.onPromptClick(prompt.id)
-                                        } else {
-                                            isSearchActive = false
-                                            onPromptClick(prompt.id)
-                                        }
-                                    },
-                                    onPromptLongClick = viewModel::onPromptLongClick,
-                                    onDeleteClick = { promptId -> viewModel.onDeleteRequested(promptId) }
+                    Row(
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isClientConnected) Icons.Default.CheckCircle else Icons.Default.Sync,
+                            contentDescription = null,
+                            tint = if (isClientConnected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Column {
+                            Text(
+                                text = if (isClientConnected) "Synchronized" else "Waiting for synchronization",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                            if (!isClientConnected) {
+                                Text(
+                                    text = "${state.ip}:${state.port}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
                                 )
                             }
                         }

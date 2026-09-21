@@ -61,4 +61,15 @@ interface PromptRepository {
      * @param templateText The raw template text.
      */
     suspend fun savePrompt(title: String, description: String, templateText: String)
+
+    /**
+     * Retrieves all searchable prompts as a direct list (non-flow).
+     */
+    suspend fun getAllPromptsSync(): List<PromptSearchable>
+
+    /**
+     * Syncs a list of prompts into the local database based on name/description matching
+     * and last modified timestamps.
+     */
+    suspend fun syncPrompts(prompts: List<PromptSearchable>)
 }

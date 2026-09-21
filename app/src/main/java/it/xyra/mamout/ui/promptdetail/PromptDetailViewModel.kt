@@ -7,6 +7,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import it.xyra.mamout.domain.parser.TagPromptParser
 import it.xyra.mamout.domain.repository.PromptRepository
+import it.xyra.mamout.sync.SyncManager
+import it.xyra.mamout.sync.SyncServer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,6 +40,40 @@ class PromptDetailViewModel(
 
     init {
         loadPrompt()
+        observeSyncServer()
+    }
+
+    private fun observeSyncServer() {
+        viewModelScope.launch {
+            SyncManager.serverState.collect { state ->
+                _uiState.update {
+                    when (state) {
+                        is SyncServer.ServerState.Running -> it.copy(
+                            isSyncing = true,
+                            syncIp = state.ip,
+                            syncPort = state.port
+                        )
+                        is SyncServer.ServerState.Stopped -> it.copy(
+                            isSyncing = false,
+                            syncIp = null,
+                            syncPort = null
+                        )
+                        is SyncServer.ServerState.Error -> it.copy(
+                            isSyncing = false,
+                            errorMessage = state.message
+                        )
+                    }
+                }
+                if (state is SyncServer.ServerState.Running) {
+                    broadcastCurrentPrompt()
+                }
+            }
+        }
+        viewModelScope.launch {
+            SyncManager.sessionCount.collect { count ->
+                _uiState.update { it.copy(isClientConnected = count > 0) }
+            }
+        }
     }
 
     /**
@@ -115,6 +151,7 @@ class PromptDetailViewModel(
      */
     fun onTemplateTextValueChange(newValue: TextFieldValue) {
         _uiState.update { it.copy(templateTextValue = newValue) }
+        broadcastCurrentPrompt()
     }
 
     /**
@@ -129,6 +166,7 @@ class PromptDetailViewModel(
             updatedMap[id] = newValue
             it.copy(inputValues = updatedMap)
         }
+        broadcastCurrentPrompt()
     }
 
     /**
@@ -185,5 +223,23 @@ class PromptDetailViewModel(
                 )
             )
         }
+    }
+
+    fun toggleSync() {
+        if (_uiState.value.isSyncing) {
+            SyncManager.stop()
+        } else {
+            SyncManager.start()
+        }
+    }
+
+    private fun broadcastCurrentPrompt() {
+        if (_uiState.value.isSyncing) {
+            SyncManager.setContent(getCompiledPrompt())
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
     }
 }

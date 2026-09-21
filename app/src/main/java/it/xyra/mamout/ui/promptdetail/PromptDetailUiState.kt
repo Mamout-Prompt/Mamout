@@ -24,5 +24,9 @@ data class PromptDetailUiState(
     val inputValues: Map<String, String> = emptyMap(),
     val isRawMode: Boolean = false,
     val isEditingHeader: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val isSyncing: Boolean = false,
+    val isClientConnected: Boolean = false,
+    val syncIp: String? = null,
+    val syncPort: Int? = null
 )
