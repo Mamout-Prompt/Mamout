@@ -30,9 +30,6 @@ object SyncManager {
     val serverState = server.serverState
     val sessionCount = server.sessionCount
 
-    private val _currentContent = MutableStateFlow<String?>(null)
-    val currentContent = _currentContent.asStateFlow()
-
     fun initialize(repository: PromptRepository) {
         this.repository = repository
     }
@@ -43,14 +40,6 @@ object SyncManager {
 
     fun stop() {
         server.stop()
-    }
-
-    /**
-     * Broadcasts the current compiled prompt (legacy support or single update)
-     */
-    fun setContent(content: String) {
-        _currentContent.value = content
-        server.broadcastMessage(json.encodeToString(SyncPayload(singlePrompt = content)))
     }
 
     /**

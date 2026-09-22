@@ -64,9 +64,7 @@ class PromptDetailViewModel(
                         )
                     }
                 }
-                if (state is SyncServer.ServerState.Running) {
-                    broadcastCurrentPrompt()
-                }
+                // State update handled by collect
             }
         }
         viewModelScope.launch {
@@ -151,7 +149,6 @@ class PromptDetailViewModel(
      */
     fun onTemplateTextValueChange(newValue: TextFieldValue) {
         _uiState.update { it.copy(templateTextValue = newValue) }
-        broadcastCurrentPrompt()
     }
 
     /**
@@ -166,7 +163,6 @@ class PromptDetailViewModel(
             updatedMap[id] = newValue
             it.copy(inputValues = updatedMap)
         }
-        broadcastCurrentPrompt()
     }
 
     /**
@@ -230,12 +226,6 @@ class PromptDetailViewModel(
             SyncManager.stop()
         } else {
             SyncManager.start()
-        }
-    }
-
-    private fun broadcastCurrentPrompt() {
-        if (_uiState.value.isSyncing) {
-            SyncManager.setContent(getCompiledPrompt())
         }
     }
 

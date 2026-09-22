@@ -125,6 +125,7 @@ class PromptRepositoryImpl(
      */
     override suspend fun deletePrompt(promptId: Long) {
         promptDao.deletePromptById(promptId)
+        SyncManager.syncAll()
     }
 
     /**
