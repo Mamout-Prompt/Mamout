@@ -6,6 +6,7 @@ import it.xyra.mamout.domain.model.PromptMatch
 import it.xyra.mamout.domain.parser.InputType
 import it.xyra.mamout.domain.parser.MarkerTool
 import it.xyra.mamout.domain.parser.PromptSegment
+import org.junit.Assert
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -77,5 +78,43 @@ class TemplatizeFlowTest {
             renderedText.contains("<INPUT type=\"smallText\">name</INPUT>")
         )
         assertEquals("Hello: <INPUT type=\"smallText\">name</INPUT>.", renderedText)
+    }
+
+    @Test
+    fun `invalid JSON with unescaped quotes throws TemplatizeException with friendly syntax message`() {
+        val rawPrompt = "Hello world"
+        val badJson = """
+            {
+              "matches": [
+                {
+                  "start_marker": 1,
+                  "end_marker": 2,
+                  "match_kind": "edit",
+                  "original_text": ""invalid", "quotes"",
+                  "field_type": "smallText"
+                }
+              ]
+            }
+        """.trimIndent()
+
+        try {
+            useCase.templatize(rawPrompt, badJson)
+            Assert.fail("Expected TemplatizeException")
+        } catch (e: TemplatizeException) {
+            assertTrue(
+                "Error message should mention syntax / quote issue",
+                e.message!!.contains("unescaped quote marks") || e.message!!.contains("syntax error")
+            )
+        }
+    }
+
+    @Test
+    fun `blank JSON response throws TemplatizeException`() {
+        try {
+            useCase.templatize("Hello", "")
+            Assert.fail("Expected TemplatizeException")
+        } catch (e: TemplatizeException) {
+            assertTrue(e.message!!.contains("paste the JSON response"))
+        }
     }
 }

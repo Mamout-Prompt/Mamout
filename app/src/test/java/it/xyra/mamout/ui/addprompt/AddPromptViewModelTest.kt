@@ -98,5 +98,11 @@ class AddPromptViewModelTest {
             savedTitle = title
             savedText = templateText
         }
+
+        override suspend fun getAllPromptsSync(): List<PromptSearchable> = emptyList()
+
+        override suspend fun syncPrompts(prompts: List<PromptSearchable>) {
+            // No-op for now
+        }
     }
 }

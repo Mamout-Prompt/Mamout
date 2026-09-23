@@ -5,7 +5,10 @@ import it.xyra.mamout.domain.model.PromptMatch
 import it.xyra.mamout.domain.parser.MarkerTool
 import it.xyra.mamout.domain.parser.ParsedPromptTemplate
 import it.xyra.mamout.domain.parser.TagPromptParser
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
+
+class TemplatizeException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
 class TemplatizePromptUseCase {
 
@@ -64,6 +67,7 @@ class TemplatizePromptUseCase {
     - start_marker/end_marker must be integers that actually appear in the input; never invent one.
     - Keep the marker span as tight as possible around the target — exclude surrounding spaces/quotes/punctuation unless they too must be replaced.
     - Adjacent distinct points must have non-overlapping marker spans.
+    - CRITICAL JSON SYNTAX: All double quotes inside string values (such as original_text) MUST be properly escaped with backslashes (e.g. "\"example\"").
     </MARKER_SELECTION_RULES>
     
     <OUTPUT_SCHEMA>
@@ -121,12 +125,46 @@ class TemplatizePromptUseCase {
      * `{...}` object before deserializing, so a straight copy-paste from a chat UI
      * still works.
      *
-     * @throws SerializationException if no JSON object can be found or parsed.
+     * @throws TemplatizeException if no valid JSON object can be found or parsed.
      */
     fun templatize(originalPrompt: String, llmJsonResponse: String): ParsedPromptTemplate {
+        if (llmJsonResponse.isBlank()) {
+            throw TemplatizeException("Please paste the JSON response from the AI first.")
+        }
+
         val jsonObject = extractJsonObject(llmJsonResponse)
-        val response = Json { ignoreUnknownKeys = true }.decodeFromString<MetaPromptResponse>(jsonObject)
+        if (!jsonObject.contains("{") || !jsonObject.contains("}")) {
+            throw TemplatizeException("No valid JSON object found in the pasted text. Make sure to copy the entire AI output starting with '{' and ending with '}'.")
+        }
+
+        val response = try {
+            Json { ignoreUnknownKeys = true }.decodeFromString<MetaPromptResponse>(jsonObject)
+        } catch (e: SerializationException) {
+            val friendlyMsg = buildFriendlyJsonErrorMessage(e)
+            throw TemplatizeException(friendlyMsg, e)
+        } catch (e: Exception) {
+            throw TemplatizeException("Unable to process the AI response. Please verify that you copied the complete JSON output.", e)
+        }
+
         return processLlmResponse(originalPrompt, response.matches)
+    }
+
+    private fun buildFriendlyJsonErrorMessage(e: SerializationException): String {
+        val msg = e.message.orEmpty()
+        return when {
+            msg.contains("EOF") || msg.contains("Unexpected end") -> {
+                "The JSON response appears to be incomplete or cut off. Please check if you copied the full message from the AI."
+            }
+            msg.contains("Unexpected JSON token") || msg.contains("Unexpected symbol") || msg.contains("string") -> {
+                "The JSON response contains a syntax error (likely unescaped quote marks inside text values). Try escaping internal quotes with a backslash (\") or ask the AI to re-format its JSON."
+            }
+            msg.contains("Field") || msg.contains("missing") -> {
+                "The JSON response structure is missing expected fields (e.g. 'matches'). Make sure you used the generated meta-prompt with the AI."
+            }
+            else -> {
+                "The pasted text is not valid JSON. Please ensure you copied the complete response from the AI without modifications."
+            }
+        }
     }
 
     /**

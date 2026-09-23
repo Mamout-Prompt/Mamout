@@ -15,6 +15,7 @@ The core strength of Mamout is its custom template engine, which transforms stat
 - **AI-Powered Templatization** — Automatically convert raw text into dynamic templates via an LLM-based analysis module.
 - **Interactive Prompt Viewer** — Automatically generates UI components for template variables, with real-time prompt compilation and preview.
 - **Advanced Search** — Quickly locate prompts by title or content.
+- **Real-Time Extension & Device Sync** — Integrated local WebSocket server powered by Ktor to synchronize prompts in real-time with browser extensions or secondary devices.
 - **Material 3 Design** — Modern UI following the latest Android guidelines, with smooth shared element transitions.
 - **Offline First** — Full local persistence via Room Database; your data is always accessible without an internet connection.
 - **Clean Architecture** — Clear separation of concerns (UI, Domain, Data) for maintainability, scalability, and testability.
@@ -27,6 +28,7 @@ The core strength of Mamout is its custom template engine, which transforms stat
 | UI Framework | Jetpack Compose (Material 3) |
 | Architecture | Clean Architecture + MVVM |
 | Database | Room (local persistence) |
+| Real-Time Sync | Ktor Embedded Server (Netty) + WebSockets |
 | Navigation | Jetpack Navigation Compose |
 | Concurrency | Kotlin Coroutines & Flow |
 | Serialization | Kotlinx Serialization |
@@ -56,6 +58,17 @@ Translate the following text to <INPUT type="options" values="Italian, French, S
 
 Mamout includes a `TemplatizePromptUseCase` designed to interface with Large Language Models. It uses a marker-based positioning system (`|N|`) so an LLM can identify insertion and edit points without altering the original text structure — ensuring high precision when converting existing prompts into dynamic Mamout templates while avoiding truncation issues.
 
+## Real-Time Synchronization
+
+Mamout features an embedded local WebSocket server that enables real-time bidirectional sync between the mobile app and connected clients (such as browser extensions or secondary devices) over Wi-Fi / local network.
+
+### Key Highlights
+
+- **Embedded Ktor WebSocket Server** — Runs a lightweight Ktor Netty server directly on the Android device (`SyncServer.kt`), dynamically bound to the local IPv4 address (`NetworkUtils.kt`).
+- **Automatic Broadcasting** — Whenever a prompt is created, updated, or deleted locally, `SyncManager` broadcasts an updated JSON payload (`SyncPayload`) to all active sessions.
+- **Bi-Directional Merge** — Incoming prompts sent over WebSocket connections are merged into local Room storage using timestamp-based (`lastModified`) conflict resolution.
+- **Live Status & Control** — Displays connection state (IP, port, active session count) in the app UI with start/stop server toggles.
+
 ## Project Structure
 
 The project follows a modular Clean Architecture pattern within the `app` module:
@@ -64,7 +77,8 @@ The project follows a modular Clean Architecture pattern within the `app` module
 it.xyra.mamout
 ├── ui/       # Presentation layer: Compose screens, ViewModels, components, theming
 ├── domain/   # Business logic: use cases, domain models, template parser
-└── data/     # Data layer: Room entities, DAOs, repository implementations
+├── data/     # Data layer: Room entities, DAOs, repository implementations
+└── sync/     # Real-time WebSocket sync server, NetworkUtils & SyncManager
 ```
 
 ## Getting Started

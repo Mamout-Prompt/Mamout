@@ -46,8 +46,8 @@ class SearchViewModelTest {
     fun `when query changes, UI state is updated with filtered results`() = runTest {
         // Given a repository with initial data
         val prompts = listOf(
-            Prompt(1, "Apple", "Red fruit"),
-            Prompt(2, "Banana", "Yellow fruit")
+            Prompt(1, "Apple", "Red fruit", 0L),
+            Prompt(2, "Banana", "Yellow fruit", 0L)
         )
         fakeRepository.emit(prompts.map { PromptSearchable(it, "") })
         
@@ -68,8 +68,8 @@ class SearchViewModelTest {
     @Test
     fun `when query is empty, UI state shows all results`() = runTest {
         val prompts = listOf(
-            Prompt(1, "Apple", "Red fruit"),
-            Prompt(2, "Banana", "Yellow fruit")
+            Prompt(1, "Apple", "Red fruit", 0L),
+            Prompt(2, "Banana", "Yellow fruit", 0L)
         )
         fakeRepository.emit(prompts.map { PromptSearchable(it, "") })
         advanceUntilIdle()
@@ -113,6 +113,12 @@ class SearchViewModelTest {
         }
 
         override suspend fun savePrompt(title: String, description: String, templateText: String) {
+            // Not needed for SearchViewModel tests
+        }
+
+        override suspend fun getAllPromptsSync(): List<PromptSearchable> = emptyList()
+
+        override suspend fun syncPrompts(prompts: List<PromptSearchable>) {
             // Not needed for SearchViewModel tests
         }
     }

@@ -7,6 +7,7 @@ import it.xyra.mamout.domain.model.Prompt
 import it.xyra.mamout.domain.model.PromptSearchable
 import it.xyra.mamout.domain.repository.PromptRepository
 import it.xyra.mamout.domain.usecase.SearchPromptsUseCase
+import it.xyra.mamout.domain.usecase.TemplatizeException
 import it.xyra.mamout.domain.usecase.TemplatizePromptUseCase
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
@@ -57,7 +58,7 @@ class AddPromptViewModel(
 
     fun applyLlmResponse(jsonResponse: String) {
         if (jsonResponse.isBlank()) {
-            _uiState.update { it.copy(error = "Paste the LLM's JSON response first") }
+            _uiState.update { it.copy(error = "Please paste the JSON response from the AI first.") }
             return
         }
         try {
@@ -69,9 +70,13 @@ class AddPromptViewModel(
                     step = 3 // Move to preview/refine step
                 )
             }
-        } catch (e: Exception) {
+        } catch (e: TemplatizeException) {
             _uiState.update {
-                it.copy(error = "Couldn't read that as JSON. Make sure you pasted the full response: ${e.message}")
+                it.copy(error = e.message ?: "Unable to process the AI response.")
+            }
+        } catch (_: Exception) {
+            _uiState.update {
+                it.copy(error = "Couldn't read that as JSON. Please make sure you copied the complete response from the AI.")
             }
         }
     }
